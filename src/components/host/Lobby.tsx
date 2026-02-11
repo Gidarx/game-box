@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import QRCode from 'qrcode';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -109,7 +110,14 @@ export default function HostLobby({
                         >
                             <div className="absolute -inset-4 bg-gradient-to-tr from-primary via-accent-cyan to-primary rounded-[2.5rem] -z-10 opacity-30 blur-xl group-hover:opacity-50 transition-opacity duration-500" />
                             {qrDataUrl ? (
-                                <img src={qrDataUrl} alt="QR Code" className="w-56 h-56 md:w-64 md:h-64 object-contain rounded-xl" />
+                                <Image
+                                    src={qrDataUrl}
+                                    alt="QR Code"
+                                    width={256}
+                                    height={256}
+                                    unoptimized
+                                    className="w-56 h-56 md:w-64 md:h-64 object-contain rounded-xl"
+                                />
                             ) : (
                                 <div className="w-56 h-56 md:w-64 md:h-64 grid place-items-center">
                                     <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />

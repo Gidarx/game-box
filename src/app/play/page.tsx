@@ -389,6 +389,7 @@ function PlayerContent() {
     const searchParams = useSearchParams();
     const { emit, on, isConnected } = useSocket();
     const SESSION_KEY = 'gamebox_player_session';
+    type StoredSession = { playerName?: string; playerId?: string | null; roomCode?: string };
 
     const [phase, setPhase] = useState<'join' | 'waiting' | 'trivia' | 'feedback' | 'gameover'>('join');
     const [playerName, setPlayerName] = useState('');
@@ -411,19 +412,22 @@ function PlayerContent() {
     useEffect(() => {
         if (typeof window === 'undefined') return;
         const raw = localStorage.getItem(SESSION_KEY);
-        let session = null;
+        let session: StoredSession | null = null;
         if (raw) {
-            try { session = JSON.parse(raw); } catch { localStorage.removeItem(SESSION_KEY); }
+            try { session = JSON.parse(raw) as StoredSession; } catch { localStorage.removeItem(SESSION_KEY); }
         }
 
         const urlRoom = searchParams.get('room');
-        if (session) {
-            setPlayerName(session.playerName || '');
-            setPlayerId(session.playerId || null);
-            setRoomCode(urlRoom || session.roomCode || '');
-        } else if (urlRoom) {
-            setRoomCode(urlRoom);
-        }
+        const nextPlayerName = session?.playerName || '';
+        const nextPlayerId = session?.playerId || null;
+        const nextRoomCode = urlRoom || session?.roomCode || '';
+        const timerId = window.setTimeout(() => {
+            setPlayerName(nextPlayerName);
+            setPlayerId(nextPlayerId);
+            setRoomCode(nextRoomCode);
+        }, 0);
+
+        return () => window.clearTimeout(timerId);
     }, [searchParams]);
 
     // Refs Sync

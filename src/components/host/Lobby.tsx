@@ -32,7 +32,6 @@ export default function HostLobby({
     const connectedPlayers = players.filter((p: any) => p.isConnected);
     const connectedCount = connectedPlayers.length;
     const botCount = connectedPlayers.filter((p: any) => p.isBot).length;
-    const humanCount = connectedCount - botCount;
     const canStart = connectedCount >= 3;
 
     const playerUrl = serverInfo

@@ -2,9 +2,13 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import type { GameState } from '@/shared/types';
+
+type CardGridState = Pick<GameState, 'cardGrid' | 'lockedKeys' | 'chances' | 'triviaWinnerId' | 'players'>;
+type GridCard = CardGridState['cardGrid'][number];
 
 interface CardGridProps {
-    gameState: any;
+    gameState: CardGridState | null;
     roomCode: string;
     onOpenCard: (cardId: number) => void;
 }
@@ -75,14 +79,13 @@ export default function CardGrid({ gameState, onOpenCard }: CardGridProps) {
 
             {/* Grid */}
             <div className="grid grid-cols-4 grid-rows-3 gap-4 flex-1 min-h-0">
-                {grid.map((card: any, i: number) => {
+                {grid.map((card: GridCard, i: number) => {
                     const isHidden = card.status === 'hidden';
                     const isRevealed = card.status === 'revealed';
                     const isLocked = card.status === 'locked';
 
                     let bgClass = "bg-surface-dark border-white/5";
                     let content = null;
-                    let iconColor = "text-white";
 
                     if (isLocked) {
                         bgClass = "bg-emerald-500/20 border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.2)]";

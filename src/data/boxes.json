@@ -1,0 +1,119 @@
+[
+    {
+        "id": 1,
+        "prizeLabel": "Caixa Tech",
+        "points": 200,
+        "rarity": "comum",
+        "risk": "baixo",
+        "type": "tech",
+        "icon": "devices"
+    },
+    {
+        "id": 2,
+        "prizeLabel": "Caixa Meme",
+        "points": 150,
+        "rarity": "comum",
+        "risk": "baixo",
+        "type": "meme",
+        "icon": "sentiment_very_satisfied"
+    },
+    {
+        "id": 3,
+        "prizeLabel": "Caixa Viagem",
+        "points": 500,
+        "rarity": "raro",
+        "risk": "medio",
+        "type": "viagem",
+        "icon": "flight_takeoff"
+    },
+    {
+        "id": 4,
+        "prizeLabel": "Caixa Mistério",
+        "points": 300,
+        "rarity": "comum",
+        "risk": "medio",
+        "type": "misterio",
+        "icon": "help_center"
+    },
+    {
+        "id": 5,
+        "prizeLabel": "Caixa Experiência",
+        "points": 350,
+        "rarity": "raro",
+        "risk": "medio",
+        "type": "experiencia",
+        "icon": "local_activity"
+    },
+    {
+        "id": 6,
+        "prizeLabel": "Caixa Pegadinha",
+        "points": -100,
+        "rarity": "comum",
+        "risk": "alto",
+        "type": "pegadinha",
+        "icon": "warning"
+    },
+    {
+        "id": 7,
+        "prizeLabel": "Caixa Tech Pro",
+        "points": 400,
+        "rarity": "raro",
+        "risk": "medio",
+        "type": "tech",
+        "icon": "computer"
+    },
+    {
+        "id": 8,
+        "prizeLabel": "Caixa Meme Gold",
+        "points": 250,
+        "rarity": "comum",
+        "risk": "baixo",
+        "type": "meme",
+        "icon": "emoji_events"
+    },
+    {
+        "id": 9,
+        "prizeLabel": "Caixa Surpresa",
+        "points": 100,
+        "rarity": "comum",
+        "risk": "alto",
+        "type": "misterio",
+        "icon": "redeem"
+    },
+    {
+        "id": 10,
+        "prizeLabel": "Caixa Aventura",
+        "points": 450,
+        "rarity": "raro",
+        "risk": "medio",
+        "type": "experiencia",
+        "icon": "explore"
+    },
+    {
+        "id": 11,
+        "prizeLabel": "Caixa Lendária",
+        "points": 1000,
+        "rarity": "lendario",
+        "risk": "alto",
+        "type": "experiencia",
+        "icon": "auto_awesome"
+    },
+    {
+        "id": 12,
+        "prizeLabel": "Caixa Viagem VIP",
+        "points": 800,
+        "rarity": "lendario",
+        "risk": "alto",
+        "type": "viagem",
+        "icon": "flight"
+    },
+    {
+        "id": 13,
+        "prizeLabel": "A Caixa Final",
+        "points": 600,
+        "rarity": "lendario",
+        "risk": "alto",
+        "type": "misterio",
+        "icon": "diamond"
+    }
+]

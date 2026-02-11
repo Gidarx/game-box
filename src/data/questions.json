@@ -1,0 +1,238 @@
+{
+  "geral": [
+    {
+      "id": "q1",
+      "text": "Qual é o maior planeta do sistema solar?",
+      "options": ["Terra", "Marte", "Júpiter", "Saturno"],
+      "correctIndex": 2,
+      "category": "Ciência",
+      "difficulty": "facil",
+      "timeLimit": 12
+    },
+    {
+      "id": "q2",
+      "text": "Em que ano o Brasil foi descoberto?",
+      "options": ["1492", "1500", "1510", "1498"],
+      "correctIndex": 1,
+      "category": "História",
+      "difficulty": "facil",
+      "timeLimit": 12
+    },
+    {
+      "id": "q3",
+      "text": "Qual é a capital da Austrália?",
+      "options": ["Sydney", "Melbourne", "Canberra", "Brisbane"],
+      "correctIndex": 2,
+      "category": "Geografia",
+      "difficulty": "medio",
+      "timeLimit": 12
+    },
+    {
+      "id": "q4",
+      "text": "Quantos ossos tem o corpo humano adulto?",
+      "options": ["186", "206", "216", "196"],
+      "correctIndex": 1,
+      "category": "Ciência",
+      "difficulty": "medio",
+      "timeLimit": 12
+    },
+    {
+      "id": "q5",
+      "text": "Qual é o elemento químico representado pelo símbolo 'Au'?",
+      "options": ["Prata", "Alumínio", "Ouro", "Argônio"],
+      "correctIndex": 2,
+      "category": "Ciência",
+      "difficulty": "facil",
+      "timeLimit": 12
+    },
+    {
+      "id": "q6",
+      "text": "Quem pintou a Mona Lisa?",
+      "options": ["Michelangelo", "Da Vinci", "Rafael", "Donatello"],
+      "correctIndex": 1,
+      "category": "Arte",
+      "difficulty": "facil",
+      "timeLimit": 12
+    },
+    {
+      "id": "q7",
+      "text": "Qual é o rio mais longo do mundo?",
+      "options": ["Amazonas", "Nilo", "Mississipi", "Yangtze"],
+      "correctIndex": 0,
+      "category": "Geografia",
+      "difficulty": "medio",
+      "timeLimit": 12
+    },
+    {
+      "id": "q8",
+      "text": "Quantas cordas tem um violão clássico?",
+      "options": ["4", "5", "6", "7"],
+      "correctIndex": 2,
+      "category": "Música",
+      "difficulty": "facil",
+      "timeLimit": 12
+    },
+    {
+      "id": "q9",
+      "text": "Qual país tem formato de bota no mapa?",
+      "options": ["Grécia", "Portugal", "Itália", "Espanha"],
+      "correctIndex": 2,
+      "category": "Geografia",
+      "difficulty": "facil",
+      "timeLimit": 12
+    },
+    {
+      "id": "q10",
+      "text": "Qual é a fórmula química da água?",
+      "options": ["CO2", "H2O", "O2", "NaCl"],
+      "correctIndex": 1,
+      "category": "Ciência",
+      "difficulty": "facil",
+      "timeLimit": 12
+    },
+    {
+      "id": "q11",
+      "text": "Em que ano o homem pisou na Lua pela primeira vez?",
+      "options": ["1965", "1967", "1969", "1971"],
+      "correctIndex": 2,
+      "category": "História",
+      "difficulty": "facil",
+      "timeLimit": 12
+    },
+    {
+      "id": "q12",
+      "text": "Qual linguagem de programação foi criada por Brendan Eich?",
+      "options": ["Python", "Java", "JavaScript", "C++"],
+      "correctIndex": 2,
+      "category": "Tecnologia",
+      "difficulty": "medio",
+      "timeLimit": 12
+    },
+    {
+      "id": "q13",
+      "text": "Qual é o menor país do mundo?",
+      "options": ["Mônaco", "Vaticano", "Liechtenstein", "Malta"],
+      "correctIndex": 1,
+      "category": "Geografia",
+      "difficulty": "medio",
+      "timeLimit": 12
+    },
+    {
+      "id": "q14",
+      "text": "Quantos continentes existem?",
+      "options": ["5", "6", "7", "8"],
+      "correctIndex": 2,
+      "category": "Geografia",
+      "difficulty": "facil",
+      "timeLimit": 12
+    },
+    {
+      "id": "q15",
+      "text": "Qual filme da Pixar tem um rato que cozinha?",
+      "options": ["Wall-E", "Up", "Ratatouille", "Carros"],
+      "correctIndex": 2,
+      "category": "Entretenimento",
+      "difficulty": "facil",
+      "timeLimit": 12
+    },
+    {
+      "id": "q16",
+      "text": "Qual é a velocidade da luz em km/s (aproximadamente)?",
+      "options": ["100.000", "200.000", "300.000", "400.000"],
+      "correctIndex": 2,
+      "category": "Ciência",
+      "difficulty": "dificil",
+      "timeLimit": 12
+    },
+    {
+      "id": "q17",
+      "text": "Quantos jogadores tem um time de vôlei em quadra?",
+      "options": ["5", "6", "7", "8"],
+      "correctIndex": 1,
+      "category": "Esportes",
+      "difficulty": "facil",
+      "timeLimit": 12
+    },
+    {
+      "id": "q18",
+      "text": "Qual é o animal mais rápido do mundo?",
+      "options": ["Leopardo", "Guepardo", "Falcão-peregrino", "Lebre"],
+      "correctIndex": 2,
+      "category": "Natureza",
+      "difficulty": "dificil",
+      "timeLimit": 12
+    },
+    {
+      "id": "q19",
+      "text": "Qual é a moeda oficial do Japão?",
+      "options": ["Yuan", "Won", "Iene", "Ringgit"],
+      "correctIndex": 2,
+      "category": "Geografia",
+      "difficulty": "medio",
+      "timeLimit": 12
+    },
+    {
+      "id": "q20",
+      "text": "Quem escreveu 'Dom Casmurro'?",
+      "options": ["José de Alencar", "Machado de Assis", "Lima Barreto", "Clarice Lispector"],
+      "correctIndex": 1,
+      "category": "Literatura",
+      "difficulty": "medio",
+      "timeLimit": 12
+    },
+    {
+      "id": "q21",
+      "text": "Qual planeta é conhecido como 'Planeta Vermelho'?",
+      "options": ["Vênus", "Marte", "Júpiter", "Saturno"],
+      "correctIndex": 1,
+      "category": "Ciência",
+      "difficulty": "facil",
+      "timeLimit": 12
+    },
+    {
+      "id": "q22",
+      "text": "Em que década foi inventada a World Wide Web?",
+      "options": ["1970", "1980", "1990", "2000"],
+      "correctIndex": 1,
+      "category": "Tecnologia",
+      "difficulty": "dificil",
+      "timeLimit": 12
+    },
+    {
+      "id": "q23",
+      "text": "Qual instrumento Beethoven tocava?",
+      "options": ["Violino", "Piano", "Flauta", "Violoncelo"],
+      "correctIndex": 1,
+      "category": "Música",
+      "difficulty": "medio",
+      "timeLimit": 12
+    },
+    {
+      "id": "q24",
+      "text": "Quanto é a raiz quadrada de 144?",
+      "options": ["10", "11", "12", "13"],
+      "correctIndex": 2,
+      "category": "Matemática",
+      "difficulty": "facil",
+      "timeLimit": 12
+    },
+    {
+      "id": "q25",
+      "text": "Qual seleção ganhou a primeira Copa do Mundo de 1930?",
+      "options": ["Brasil", "Argentina", "Uruguai", "Itália"],
+      "correctIndex": 2,
+      "category": "Esportes",
+      "difficulty": "dificil",
+      "timeLimit": 12
+    },
+    {
+      "id": "q26",
+      "text": "Qual gás as plantas absorvem da atmosfera?",
+      "options": ["Oxigênio", "Nitrogênio", "Dióxido de Carbono", "Hidrogênio"],
+      "correctIndex": 2,
+      "category": "Ciência",
+      "difficulty": "facil",
+      "timeLimit": 12
+    }
+  ]
+}

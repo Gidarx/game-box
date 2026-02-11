@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSocket } from '@/hooks/useSocket';
+import { useAudio } from '@/hooks/useAudio';
+import type { BGMPhase } from '@/hooks/useAudio';
 import HostLobby from '@/components/host/Lobby';
 import Gameboard from '@/components/host/Gameboard';
 import TriviaView from '@/components/host/TriviaView';
@@ -15,12 +17,15 @@ import Leaderboard from '@/components/host/Leaderboard';
 
 export default function HostPage() {
     const { emit, on, isConnected } = useSocket();
+    const audio = useAudio();
     const [gameState, setGameState] = useState<any>(null);
     const [roomCode, setRoomCode] = useState<string | null>(null);
     const [serverInfo, setServerInfo] = useState<{ localIP: string; port: number; playerUrl: string } | null>(null);
     const [rankingData, setRankingData] = useState<{ question: string; items: string[] } | null>(null);
     const [rankingResult, setRankingResult] = useState<any>(null);
+    const [isMuted, setIsMuted] = useState(false);
     const initialized = useRef(false);
+    const prevPhaseRef = useRef<string | null>(null);
 
     useEffect(() => {
         fetch('/api/server-info')
@@ -41,7 +46,32 @@ export default function HostPage() {
 
         unsubs.push(on('ranking:result', (data: any) => {
             setRankingResult(data);
+            audio.playSFX('rankingSubmit');
             setTimeout(() => setRankingResult(null), 3000);
+        }));
+
+        // SFX event listeners
+        unsubs.push(on('card:opened', (data: any) => {
+            if (data.type === 'key') audio.playSFX('key');
+            else if (data.type === 'lost_turn') audio.playSFX('lostTurn');
+            else if (data.type === 'duel') audio.playSFX('duel');
+            else audio.playSFX('distractor');
+        }));
+
+        unsubs.push(on('box:reveal', () => {
+            audio.playSFX('reveal');
+        }));
+
+        unsubs.push(on('wildcard:effect', () => {
+            audio.playSFX('wildcard');
+        }));
+
+        unsubs.push(on('trivia:result', (data: any) => {
+            if (data.winnerId) audio.playSFX('correct');
+        }));
+
+        unsubs.push(on('duel:result', () => {
+            audio.playSFX('duel');
         }));
 
         return () => unsubs.forEach(u => u());
@@ -62,6 +92,34 @@ export default function HostPage() {
     useEffect(() => {
         if (isConnected && !roomCode) createRoom();
     }, [isConnected, roomCode, createRoom]);
+
+    // BGM phase tracking + SFX on phase transitions
+    useEffect(() => {
+        const phase = gameState?.phase;
+        if (!phase) return;
+        const prev = prevPhaseRef.current;
+        prevPhaseRef.current = phase;
+
+        // SFX on phase transitions
+        if (prev && prev !== phase) {
+            if (phase === 'trivia_all' && prev === 'lobby') audio.playSFX('gameStart');
+            if (phase === 'game_over') audio.playSFX('gameOver');
+        }
+
+        // BGM mapping
+        const bgmMap: Record<string, BGMPhase> = {
+            lobby: 'lobby',
+            trivia_all: 'trivia',
+            box_select: 'lobby',
+            ranking_challenge: 'trivia',
+            card_open: 'card_open',
+            duel: 'duel',
+            reveal: 'reveal',
+            wildcard: 'wildcard',
+            game_over: 'game_over',
+        };
+        audio.startBGM(bgmMap[phase] || 'silent');
+    }, [gameState?.phase, audio]);
 
     const startGame = useCallback(() => {
         if (!roomCode) return;
@@ -149,6 +207,11 @@ export default function HostPage() {
 
     const phase = gameState.phase;
 
+    const handleToggleMute = useCallback(() => {
+        const nowMuted = audio.toggleMute();
+        setIsMuted(nowMuted);
+    }, [audio]);
+
     if (phase === 'lobby') {
         return (
             <HostLobby
@@ -164,10 +227,21 @@ export default function HostPage() {
     }
 
     return (
-        <div className="flex h-screen w-screen p-4 gap-4 overflow-hidden">
+        <div className="flex h-screen w-screen p-4 gap-4 overflow-hidden relative">
+            {/* Mute Toggle */}
+            <button
+                onClick={handleToggleMute}
+                className="absolute top-6 right-6 z-50 w-10 h-10 rounded-full bg-surface-dark/80 backdrop-blur border border-primary/20 flex items-center justify-center hover:border-primary/50 transition-all hover:scale-105 active:scale-95"
+                title={isMuted ? 'Ativar som' : 'Silenciar'}
+            >
+                <span className="material-icons text-lg text-primary/70">
+                    {isMuted ? 'volume_off' : 'volume_up'}
+                </span>
+            </button>
+
             <div className="flex-grow flex flex-col gap-4">
                 {phase === 'trivia_all' && (
-                    <TriviaView gameState={gameState} roomCode={roomCode!} />
+                    <TriviaView gameState={gameState} />
                 )}
 
                 {phase === 'box_select' && (
@@ -176,6 +250,7 @@ export default function HostPage() {
 
                 {phase === 'ranking_challenge' && rankingData && !rankingResult && (
                     <RankingChallenge
+                        key={`${rankingData.question}-${rankingData.items.join('|')}`}
                         question={rankingData.question}
                         items={rankingData.items}
                         onSubmit={submitRanking}
@@ -208,8 +283,16 @@ export default function HostPage() {
                         <div className="text-center max-w-2xl">
                             <span className="material-icons text-9xl text-purple-500 mb-4 animate-pulse">swords</span>
                             <h1 className="text-5xl font-black uppercase tracking-tight mb-4">DUELO!</h1>
-                            <p className="text-xl text-white/50 mb-8">Pergunta especial no celular dos jogadores!</p>
-                            {gameState.currentQuestion && (
+                            {!gameState.duelOpponentId ? (
+                                <p className="text-xl text-white/50 mb-8">
+                                    Aguardando o jogador da vez escolher um oponente no celular...
+                                </p>
+                            ) : (
+                                <p className="text-xl text-white/50 mb-8">
+                                    {gameState.players?.[gameState.triviaWinnerId]?.name || 'Jogador 1'} x {gameState.players?.[gameState.duelOpponentId]?.name || 'Jogador 2'}
+                                </p>
+                            )}
+                            {gameState.currentQuestion && gameState.duelOpponentId && (
                                 <div className="glass-panel p-6 rounded-2xl border border-purple-500/30">
                                     <p className="text-2xl font-bold">{gameState.currentQuestion.text}</p>
                                 </div>
@@ -219,7 +302,7 @@ export default function HostPage() {
                 )}
 
                 {phase === 'reveal' && (
-                    <RevealView gameState={gameState} onNext={forceNext} />
+                    <RevealView gameState={gameState} onContinue={forceNext} />
                 )}
 
                 {phase === 'wildcard' && (
@@ -241,7 +324,7 @@ export default function HostPage() {
                 )}
             </div>
 
-            <Leaderboard gameState={gameState} roomCode={roomCode!} onForceNext={forceNext} />
+            <Leaderboard gameState={gameState} onForceNext={forceNext} />
         </div>
     );
 }

@@ -1,7 +1,6 @@
-﻿'use client';
+'use client';
 
-import { useEffect, useState } from 'react';
-import { useSocket } from '@/hooks/useSocket';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -9,226 +8,203 @@ import { cn } from '@/lib/utils';
 
 interface Props {
     gameState: any;
-    roomCode: string;
 }
 
-export default function TriviaView({ gameState, roomCode }: Props) {
-    const { on, emit } = useSocket();
-    const [triviaResult, setTriviaResult] = useState<any>(null);
-    const [timeLeft, setTimeLeft] = useState(12);
-    const [answeredCount, setAnsweredCount] = useState(0);
+function CountdownOverlay({ onComplete }: { onComplete: () => void }) {
+    const [count, setCount] = useState(3);
 
-    const question = gameState.currentQuestion;
-    const connectedPlayers = Object.values(gameState.players || {}).filter((p: any) => p.isConnected).length;
-    const totalPlayers = gameState.eligibleCount ?? connectedPlayers;
-
-    // Timer Logic
     useEffect(() => {
-        if (!gameState.timerEndAt) return;
-        const interval = setInterval(() => {
-            const remaining = Math.max(0, Math.ceil((gameState.timerEndAt - Date.now()) / 1000));
-            setTimeLeft(remaining);
-            if (remaining <= 0) {
-                clearInterval(interval);
-                emit('trivia:forceResolve', { roomCode });
-            }
-        }, 100);
-        return () => clearInterval(interval);
-    }, [gameState.timerEndAt, roomCode, emit]);
-
-    // Socket Events
-    useEffect(() => {
-        const unsubs: (() => void)[] = [];
-        unsubs.push(on('trivia:playerAnswered', (data: any) => setAnsweredCount(data.totalAnswered)));
-        unsubs.push(on('trivia:result', (data: any) => setTriviaResult(data)));
-        return () => unsubs.forEach(u => u());
-    }, [on]);
-
-    // Reset State on New Question
-    useEffect(() => {
-        const id = setTimeout(() => {
-            setTriviaResult(null);
-            setAnsweredCount(gameState.answeredCount || 0);
-        }, 0);
-        return () => clearTimeout(id);
-    }, [question?.id, gameState.answeredCount]);
-
-    if (!question) {
-        return (
-            <div className="flex-grow grid place-items-center glass-panel rounded-2xl">
-                <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-            </div>
-        );
-    }
-
-    const timerProgress = Math.min(100, (timeLeft / 12) * 100);
+        if (count <= 0) {
+            onComplete();
+            return;
+        }
+        const timer = setTimeout(() => setCount(c => c - 1), 700);
+        return () => clearTimeout(timer);
+    }, [count, onComplete]);
 
     return (
-        <div className="flex-grow flex flex-col gap-6 animate-fade-in min-h-0 bg-background-dark text-white font-body p-4 rounded-3xl">
-            {/* Header */}
-            <header className="glass-panel rounded-2xl px-8 py-5 flex items-center justify-between gap-6 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent-cyan to-transparent opacity-50" />
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-30 flex items-center justify-center bg-background-dark/80 backdrop-blur-md rounded-3xl"
+        >
+            <AnimatePresence mode="wait">
+                <motion.div
+                    key={count}
+                    initial={{ scale: 0.3, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 2, opacity: 0 }}
+                    transition={{ duration: 0.4, ease: [0.175, 0.885, 0.32, 1.275] }}
+                    className="flex flex-col items-center"
+                >
+                    {count > 0 ? (
+                        <span className="text-[12rem] font-black font-display text-primary leading-none"
+                            style={{ textShadow: '0 0 60px rgba(247,183,49,0.5), 0 0 120px rgba(247,183,49,0.2)' }}
+                        >
+                            {count}
+                        </span>
+                    ) : (
+                        <span className="text-8xl font-black font-display text-accent-emerald uppercase tracking-widest"
+                            style={{ textShadow: '0 0 40px rgba(0,230,118,0.6)' }}
+                        >
+                            GO!
+                        </span>
+                    )}
+                </motion.div>
+            </AnimatePresence>
+        </motion.div>
+    );
+}
+
+export default function TriviaView({ gameState }: Props) {
+    const question = gameState?.currentQuestion;
+    const totalTime = Math.max(1, Number(question?.timeLimit) || 12);
+    const [now, setNow] = useState(() => Date.now());
+    const [showCountdown, setShowCountdown] = useState(false);
+    const questionIdRef = useRef<string | null>(null);
+
+    // Trigger countdown on new question
+    useEffect(() => {
+        const qId = question?.id || question?.text;
+        if (qId && qId !== questionIdRef.current) {
+            questionIdRef.current = qId;
+            setShowCountdown(true);
+        }
+    }, [question?.id, question?.text]);
+
+    useEffect(() => {
+        const timerEndAt = Number(gameState?.timerEndAt) || 0;
+        if (!timerEndAt || gameState?.phase !== 'trivia_all') return;
+
+        const interval = setInterval(() => {
+            setNow(Date.now());
+        }, 100);
+
+        return () => clearInterval(interval);
+    }, [gameState?.timerEndAt, gameState?.phase]);
+
+    const timerEndAt = Number(gameState?.timerEndAt) || 0;
+    const timeLeft = timerEndAt
+        ? Math.max(0, Math.ceil((timerEndAt - now) / 1000))
+        : totalTime;
+
+    const progress = useMemo(() => {
+        return Math.max(0, Math.min(100, (timeLeft / totalTime) * 100));
+    }, [timeLeft, totalTime]);
+
+    const isUrgent = timeLeft <= 4;
+    const options = Array.isArray(question?.options) ? question.options : [];
+    const answeredCount = Number(gameState?.answeredCount) || 0;
+    const eligibleCount = Number(gameState?.eligibleCount) || 0;
+    const cardSuits = ['♠', '♥', '♦', '♣'];
+
+    // SVG circular timer
+    const radius = 38;
+    const circumference = 2 * Math.PI * radius;
+    const strokeDashoffset = circumference * (1 - progress / 100);
+
+    return (
+        <div className="flex-1 flex flex-col gap-5 animate-fade-in min-h-0 bg-background-dark text-white font-body p-4 rounded-3xl relative">
+            {/* Countdown Overlay */}
+            <AnimatePresence>
+                {showCountdown && (
+                    <CountdownOverlay onComplete={() => setShowCountdown(false)} />
+                )}
+            </AnimatePresence>
+
+            <header className="glass-panel rounded-2xl p-5 flex items-center justify-between gap-4 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
 
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-accent-cyan/10 border border-accent-cyan/30 flex items-center justify-center relative">
-                        <span className="w-3 h-3 rounded-full bg-accent-cyan absolute -top-1 -right-1 animate-pulse shadow-[0_0_10px_rgba(0,240,255,0.5)]" />
-                        <span className="material-icons text-accent-cyan">quiz</span>
+                    <div className="chip-badge py-2 px-4">
+                        <span className="material-icons text-[14px] text-primary">category</span>
+                        {question?.category || 'Geral'}
                     </div>
-                    <div>
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-bold">Fase Ativa</p>
-                        <h2 className="text-2xl font-black uppercase tracking-wide">Trivia Geral</h2>
+                    <div className="flex items-center gap-2 text-sm text-white/40">
+                        <span className="material-icons text-base text-accent-emerald">groups</span>
+                        <span className="font-bold text-white">{answeredCount}</span>/<span>{eligibleCount}</span>
+                        <span className="text-xs">responderam</span>
                     </div>
                 </div>
 
-                {/* Progress / Status */}
+                {/* Circular Timer */}
                 <div className={cn(
-                    "px-6 py-3 rounded-xl border flex items-center gap-3 transition-all",
-                    triviaResult
-                        ? 'bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.2)]'
-                        : 'bg-surface-dark border-white/10'
+                    'flex items-center gap-4 px-5 py-3 rounded-xl border transition-all',
+                    isUrgent
+                        ? 'bg-accent-red/15 border-accent-red/40 shadow-[0_0_20px_rgba(255,23,68,0.2)]'
+                        : 'bg-surface-dark border-primary/10'
                 )}>
-                    {triviaResult ? (
-                        <>
-                            <span className="material-icons text-emerald-400">emoji_events</span>
-                            <div>
-                                <p className="text-[10px] uppercase tracking-wider text-emerald-400/60 font-bold">Vencedor</p>
-                                <p className="text-sm font-black text-emerald-400">{triviaResult.winnerName || 'Ninguém acertou'}</p>
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <span className="material-icons text-white/40">groups</span>
-                            <div>
-                                <p className="text-[10px] uppercase tracking-wider text-white/40 font-bold">Respostas</p>
-                                <p className="text-sm font-black text-white">{answeredCount} <span className="text-white/40">/ {totalPlayers}</span></p>
-                            </div>
-                        </>
-                    )}
-                </div>
-
-                <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-bold">Rodada</p>
-                    <p className="text-3xl font-black text-glow">{gameState.round}</p>
+                    <div className={cn("relative w-20 h-20", isUrgent && "animate-[urgentShake_0.4s_ease-in-out_infinite]")}>
+                        <svg className="w-full h-full -rotate-90" viewBox="0 0 84 84">
+                            {/* Background circle */}
+                            <circle cx="42" cy="42" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="5" />
+                            {/* Progress circle */}
+                            <motion.circle
+                                cx="42" cy="42" r={radius}
+                                fill="none"
+                                stroke={isUrgent ? '#FF1744' : '#F7B731'}
+                                strokeWidth="5"
+                                strokeLinecap="round"
+                                strokeDasharray={circumference}
+                                initial={false}
+                                animate={{ strokeDashoffset }}
+                                transition={{ duration: 0.2 }}
+                                style={{
+                                    filter: isUrgent
+                                        ? 'drop-shadow(0 0 8px rgba(255,23,68,0.5))'
+                                        : 'drop-shadow(0 0 5px rgba(247,183,49,0.3))',
+                                }}
+                            />
+                        </svg>
+                        {/* Center number */}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <motion.span
+                                key={timeLeft}
+                                initial={{ scale: 1.3 }}
+                                animate={{ scale: 1 }}
+                                className={cn(
+                                    'text-2xl font-mono font-black tabular-nums',
+                                    isUrgent ? 'text-accent-red text-glow-red' : 'text-primary text-glow'
+                                )}
+                            >
+                                {timeLeft}
+                            </motion.span>
+                        </div>
+                    </div>
                 </div>
             </header>
 
-            {/* Main Content */}
-            <div className="glass-panel rounded-2xl p-8 md:p-12 flex-grow flex flex-col items-center justify-center min-h-0 relative">
-                {/* Timer Bar */}
-                <div className="absolute top-0 left-0 w-full h-2 bg-surface-dark">
+            <motion.div
+                key={question?.id || 'no-question'}
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                className="glass-panel rounded-2xl p-10 text-center relative overflow-hidden"
+            >
+                <div className="absolute inset-0 bg-gradient-to-b from-primary/3 to-transparent pointer-events-none" />
+                <p className="text-[10px] uppercase tracking-[0.2em] text-primary/30 mb-4 font-black">Pergunta</p>
+                <h2 className="text-2xl md:text-4xl font-display font-black uppercase tracking-wide leading-snug max-w-4xl mx-auto">
+                    {question?.text || 'Aguardando pergunta...'}
+                </h2>
+            </motion.div>
+
+            <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
+                {options.map((opt: string, i: number) => (
                     <motion.div
-                        initial={{ width: '100%' }}
-                        animate={{ width: `${timerProgress}%` }}
-                        transition={{ duration: 0.1, ease: 'linear' }}
-                        className={cn(
-                            "h-full shadow-[0_0_15px_currentColor]",
-                            timeLeft <= 3 ? "bg-red-500 text-red-500" : "bg-primary text-primary"
-                        )}
-                    />
-                </div>
-
-                {/* Timer Display */}
-                <div className="absolute top-8 right-8">
-                    <div className={cn(
-                        "flex flex-col items-center justify-center w-20 h-20 rounded-2xl border transition-all",
-                        timeLeft <= 3 ? "bg-red-500/10 border-red-500/50 animate-pulse" : "bg-surface-dark border-white/10"
-                    )}>
-                        <span className="text-[10px] uppercase tracking-wider font-bold opacity-50">Tempo</span>
-                        <span className={cn("text-3xl font-mono font-black", timeLeft <= 3 ? "text-red-400" : "text-white")}>
-                            {timeLeft}s
+                        key={`${question?.id || 'q'}-${i}`}
+                        initial={{ x: i % 2 === 0 ? -40 : 40, rotateZ: i % 2 === 0 ? -3 : 3, opacity: 0 }}
+                        animate={{ x: 0, rotateZ: 0, opacity: 1 }}
+                        transition={{ delay: 0.15 + i * 0.1, type: 'spring', stiffness: 150, damping: 15 }}
+                        className="rounded-2xl border p-6 flex items-center gap-6 transition-all duration-300 bg-surface-dark border-primary/5 hover:border-primary/15"
+                    >
+                        <span className="text-3xl font-black font-display flex-shrink-0 text-primary/20">
+                            {cardSuits[i] || '•'}
                         </span>
-                    </div>
-                </div>
-
-                {/* Category Pill */}
-                <motion.div
-                    initial={{ y: -20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    className="mb-8"
-                >
-                    <span className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-black uppercase tracking-[0.2em] text-accent-cyan shadow-neon">
-                        {question.category}
-                    </span>
-                </motion.div>
-
-                {/* Question */}
-                <motion.div
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="w-full max-w-4xl text-center mb-12"
-                >
-                    <h1 className="text-3xl md:text-5xl font-black leading-tight text-balance drop-shadow-lg">
-                        {question.text}
-                    </h1>
-                </motion.div>
-
-                {/* Options / Result */}
-                <div className="w-full max-w-5xl">
-                    <AnimatePresence mode="wait">
-                        {triviaResult ? (
-                            <motion.div
-                                key="result"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -20 }}
-                                className="grid grid-cols-2 gap-4"
-                            >
-                                {question.options?.map((opt: string, i: number) => (
-                                    <div
-                                        key={i}
-                                        className={cn(
-                                            "rounded-xl p-6 text-center border-2 transition-all flex items-center gap-4",
-                                            i === triviaResult.correctIndex
-                                                ? "bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-[0_0_30px_rgba(16,185,129,0.2)]"
-                                                : "bg-surface-dark border-white/5 text-white/30 opacity-50"
-                                        )}
-                                    >
-                                        <span className={cn(
-                                            "w-10 h-10 rounded-lg flex items-center justify-center font-black text-lg",
-                                            i === triviaResult.correctIndex ? "bg-emerald-500 text-black" : "bg-white/10"
-                                        )}>
-                                            {['A', 'B', 'C', 'D'][i]}
-                                        </span>
-                                        <span className="text-xl font-bold text-left">{opt}</span>
-                                        {i === triviaResult.correctIndex && <span className="material-icons ml-auto text-3xl">check_circle</span>}
-                                    </div>
-                                ))}
-                            </motion.div>
-                        ) : (
-                            <motion.div
-                                key="waiting"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="flex flex-col items-center gap-6"
-                            >
-                                <div className="flex flex-wrap justify-center gap-3">
-                                    {Array.from({ length: totalPlayers }).map((_, i) => (
-                                        <motion.div
-                                            key={i}
-                                            initial={{ scale: 0 }}
-                                            animate={{ scale: 1 }}
-                                            transition={{ delay: i * 0.05 }}
-                                            className={cn(
-                                                "w-12 h-12 rounded-xl border-2 grid place-items-center transition-all duration-300",
-                                                i < answeredCount
-                                                    ? "bg-primary text-white border-primary shadow-[0_0_15px_rgba(112,0,255,0.4)] scale-110"
-                                                    : "bg-surface-dark border-white/10 text-white/20"
-                                            )}
-                                        >
-                                            <span className="material-icons">
-                                                {i < answeredCount ? 'check' : 'person'}
-                                            </span>
-                                        </motion.div>
-                                    ))}
-                                </div>
-                                <p className="text-sm font-bold uppercase tracking-[0.2em] text-white/40 animate-pulse">
-                                    Aguardando respostas...
-                                </p>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
+                        <p className="text-lg md:text-xl font-bold leading-snug text-white">
+                            {opt}
+                        </p>
+                    </motion.div>
+                ))}
             </div>
         </div>
     );

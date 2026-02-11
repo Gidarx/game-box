@@ -1,16 +1,20 @@
 ﻿@import "tailwindcss";
 
 @theme inline {
-  --color-primary: #7000ff;
-  --color-primary-strong: #8f33ff;
-  --color-accent-cyan: #00f0ff;
-  --color-accent-lime: #ccff00;
-  --color-accent-pink: #ff0099;
-  --color-background-dark: #050510;
-  --color-background-mid: #0f0f20;
-  --color-surface-dark: #15152a;
+  --color-primary: #F7B731;
+  --color-primary-strong: #FFD700;
+  --color-primary-dark: #C9920A;
+  --color-accent-emerald: #00E676;
+  --color-accent-red: #FF1744;
+  --color-accent-cyan: #00E5FF;
+  --color-accent-lime: #AEEA00;
+  --color-accent-pink: #FF4081;
+  --color-background-dark: #0A0E17;
+  --color-background-mid: #0F1520;
+  --color-surface-dark: #131A2A;
+  --color-felt-green: #0B3D2E;
 
-  --font-display: var(--font-display), cursive;
+  --font-display: var(--font-display), sans-serif;
   --font-body: var(--font-body), sans-serif;
 
   --radius-default: 1rem;
@@ -23,6 +27,9 @@
   --animate-pulse-glow: pulseGlow 2s ease-in-out infinite;
   --animate-slide-up: slideUp 0.5s ease-out forwards;
   --animate-pop-in: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  --animate-shimmer: shimmer 2.5s ease-in-out infinite;
+  --animate-neon-pulse: neonPulse 2s ease-in-out infinite;
+  --animate-chip-spin: chipSpin 4s linear infinite;
 
   @keyframes fadeIn {
     from {
@@ -50,11 +57,11 @@
 
     0%,
     100% {
-      box-shadow: 0 0 10px rgba(112, 0, 255, 0.2);
+      box-shadow: 0 0 10px rgba(247, 183, 49, 0.2);
     }
 
     50% {
-      box-shadow: 0 0 25px rgba(112, 0, 255, 0.6);
+      box-shadow: 0 0 30px rgba(247, 183, 49, 0.6);
     }
   }
 
@@ -81,6 +88,163 @@
       transform: scale(1);
     }
   }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% center;
+    }
+
+    100% {
+      background-position: 200% center;
+    }
+  }
+
+  @keyframes neonPulse {
+
+    0%,
+    100% {
+      box-shadow: 0 0 5px rgba(247, 183, 49, 0.3), 0 0 15px rgba(247, 183, 49, 0.1);
+    }
+
+    50% {
+      box-shadow: 0 0 15px rgba(247, 183, 49, 0.6), 0 0 40px rgba(247, 183, 49, 0.2);
+    }
+  }
+
+  @keyframes chipSpin {
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes cardFlip {
+    0% {
+      transform: perspective(600px) rotateY(0deg);
+    }
+
+    50% {
+      transform: perspective(600px) rotateY(90deg);
+    }
+
+    100% {
+      transform: perspective(600px) rotateY(0deg);
+    }
+  }
+
+  @keyframes urgentShake {
+
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+      transform: translateX(-3px);
+    }
+
+    20%,
+    40%,
+    60%,
+    80% {
+      transform: translateX(3px);
+    }
+  }
+
+  @keyframes countdownPop {
+    0% {
+      transform: scale(0.3);
+      opacity: 0;
+    }
+
+    50% {
+      transform: scale(1.3);
+      opacity: 1;
+    }
+
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes revelationGlow {
+    0% {
+      box-shadow: 0 0 0 rgba(247, 183, 49, 0);
+    }
+
+    50% {
+      box-shadow: 0 0 80px rgba(247, 183, 49, 0.6), 0 0 150px rgba(247, 183, 49, 0.2);
+    }
+
+    100% {
+      box-shadow: 0 0 30px rgba(247, 183, 49, 0.3);
+    }
+  }
+
+  @keyframes sparkle {
+    0% {
+      opacity: 0;
+      transform: translateY(0) scale(0);
+    }
+
+    30% {
+      opacity: 1;
+      transform: translateY(-10px) scale(1);
+    }
+
+    100% {
+      opacity: 0;
+      transform: translateY(-40px) scale(0.5);
+    }
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(30px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes typewriter {
+    from {
+      max-width: 0;
+    }
+
+    to {
+      max-width: 100%;
+    }
+  }
+
+  @keyframes counterUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  --animate-urgent-shake: urgentShake 0.4s ease-in-out;
+  --animate-countdown-pop: countdownPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  --animate-revelation-glow: revelationGlow 1.5s ease-out forwards;
+  --animate-sparkle: sparkle 0.8s ease-out forwards;
+  --animate-slide-in-right: slideInRight 0.3s ease-out forwards;
 }
 
 @layer base {
@@ -89,11 +253,12 @@
   }
 
   body {
-    @apply bg-background-dark text-white font-body selection:bg-accent-cyan/30 selection:text-white;
+    @apply bg-background-dark text-white font-body selection:bg-primary/30 selection:text-white;
     background-image:
-      radial-gradient(circle at 10% 20%, rgba(112, 0, 255, 0.15) 0%, transparent 40%),
-      radial-gradient(circle at 90% 80%, rgba(0, 240, 255, 0.1) 0%, transparent 40%),
-      linear-gradient(to bottom, #050510, #0a0a1a);
+      radial-gradient(circle at 15% 85%, rgba(11, 61, 46, 0.25) 0%, transparent 45%),
+      radial-gradient(circle at 85% 15%, rgba(247, 183, 49, 0.08) 0%, transparent 40%),
+      radial-gradient(circle at 50% 50%, rgba(0, 230, 118, 0.04) 0%, transparent 60%),
+      linear-gradient(to bottom, #0A0E17, #060A12);
     min-height: 100vh;
     overflow-x: hidden;
   }
@@ -115,73 +280,155 @@
     @apply min-h-screen relative flex flex-col;
   }
 
-  /* Glass Panels */
+  /* Glass Panels — Casino Dark */
   .glass-panel {
-    @apply bg-background-mid/60 backdrop-blur-xl border border-white/10 shadow-xl;
+    @apply bg-background-mid/70 backdrop-blur-xl border border-primary/10 shadow-xl;
+    background-image: linear-gradient(135deg, rgba(247, 183, 49, 0.02) 0%, transparent 50%);
   }
 
   .glass-card {
-    @apply bg-surface-dark/50 backdrop-blur-md border border-white/5 hover:border-white/20 transition-all duration-300;
+    @apply bg-surface-dark/60 backdrop-blur-md border border-primary/5 hover:border-primary/25 transition-all duration-300;
   }
 
-  /* Buttons */
+  /* Casino Surface — Felt-like */
+  .felt-surface {
+    @apply bg-felt-green/30 border border-felt-green/40;
+    background-image:
+      radial-gradient(rgba(0, 230, 118, 0.05) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  /* Buttons — Casino Gold */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold uppercase tracking-widest transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none bg-primary hover:bg-primary-strong text-white border border-white/10;
-    box-shadow: 0 0 20px rgba(112, 0, 255, 0.4);
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold uppercase tracking-widest transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none text-black border border-primary-dark/50;
+    background: linear-gradient(135deg, #F7B731, #FFD700, #F7B731);
+    background-size: 200% 100%;
+    box-shadow: 0 0 20px rgba(247, 183, 49, 0.3), 0 4px 15px rgba(0, 0, 0, 0.4);
   }
 
   .btn-primary:hover {
-    box-shadow: 0 0 30px rgba(112, 0, 255, 0.6);
+    background-position: 100% center;
+    box-shadow: 0 0 35px rgba(247, 183, 49, 0.5), 0 4px 20px rgba(0, 0, 0, 0.5);
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold uppercase tracking-widest transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/25;
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold uppercase tracking-widest transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-primary/30;
   }
 
   .btn-accent {
-    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold uppercase tracking-widest transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none bg-accent-cyan text-black hover:bg-cyan-300;
-    box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold uppercase tracking-widest transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none bg-accent-emerald text-black hover:bg-green-300;
+    box-shadow: 0 0 20px rgba(0, 230, 118, 0.3);
   }
 
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold uppercase tracking-widest transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30;
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold uppercase tracking-widest transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none bg-accent-red/20 text-accent-red hover:bg-accent-red/30 border border-accent-red/30;
   }
 
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold uppercase tracking-widest transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none bg-transparent hover:bg-white/5 text-white/70 hover:text-white;
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold uppercase tracking-widest transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none bg-transparent hover:bg-white/5 text-white/70 hover:text-primary;
+    border: 1px solid rgba(247, 183, 49, 0.2);
   }
 
-  /* Pills & Badges */
+  .btn-ghost:hover {
+    border-color: rgba(247, 183, 49, 0.5);
+    box-shadow: 0 0 15px rgba(247, 183, 49, 0.1);
+  }
+
+  /* Pills & Badges — Casino Chip Style */
   .metric-pill {
-    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/30 border border-white/10 text-xs font-bold uppercase tracking-wider text-white/80;
+    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 border border-primary/15 text-xs font-bold uppercase tracking-wider text-white/80;
+  }
+
+  .chip-badge {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-full font-bold uppercase tracking-wider text-xs;
+    background: linear-gradient(135deg, rgba(247, 183, 49, 0.15), rgba(247, 183, 49, 0.05));
+    border: 1px solid rgba(247, 183, 49, 0.3);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+
+  /* Casino Card */
+  .casino-card {
+    @apply relative rounded-2xl border overflow-hidden transition-all duration-300;
+    background: linear-gradient(145deg, #131A2A 0%, #0F1520 100%);
+    border-color: rgba(247, 183, 49, 0.1);
+  }
+
+  .casino-card:hover {
+    border-color: rgba(247, 183, 49, 0.3);
+    box-shadow: 0 0 25px rgba(247, 183, 49, 0.1), 0 8px 30px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Neon Border */
+  .neon-border {
+    position: relative;
+    border: 1px solid rgba(247, 183, 49, 0.2);
+  }
+
+  .neon-border::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    border: 1px solid transparent;
+    background: linear-gradient(135deg, rgba(247, 183, 49, 0.3), transparent, rgba(0, 230, 118, 0.2)) border-box;
+    mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+    -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    -webkit-mask-composite: xor;
+    pointer-events: none;
   }
 
   /* Utility Classes */
   .text-glow {
-    text-shadow: 0 0 10px currentColor;
+    text-shadow: 0 0 10px rgba(247, 183, 49, 0.5), 0 0 30px rgba(247, 183, 49, 0.2);
+  }
+
+  .text-glow-green {
+    text-shadow: 0 0 10px rgba(0, 230, 118, 0.5), 0 0 30px rgba(0, 230, 118, 0.2);
+  }
+
+  .text-glow-red {
+    text-shadow: 0 0 10px rgba(255, 23, 68, 0.5), 0 0 30px rgba(255, 23, 68, 0.2);
   }
 
   .box-hover {
     @apply hover:-translate-y-1 hover:shadow-lg transition-transform duration-300;
   }
+
+  .surface-card {
+    @apply bg-surface-dark/50 border border-primary/5 rounded-xl p-4;
+    background-image: linear-gradient(135deg, rgba(247, 183, 49, 0.02) 0%, transparent 60%);
+  }
+
+  /* Gold Shimmer Effect */
+  .gold-shimmer {
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(247, 183, 49, 0.1) 25%,
+        rgba(255, 215, 0, 0.2) 50%,
+        rgba(247, 183, 49, 0.1) 75%,
+        transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 3s ease-in-out infinite;
+  }
 }
 
-/* Rarity Styles */
+/* Rarity Styles — Casino Gems */
 .rarity-comum {
   @apply text-gray-400 border-gray-600 bg-gray-900/50;
 }
 
 .rarity-raro {
-  @apply text-blue-400 border-blue-500 bg-blue-900/50;
-  box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+  @apply text-accent-emerald border-accent-emerald/50 bg-accent-emerald/10;
+  box-shadow: 0 0 15px rgba(0, 230, 118, 0.2);
 }
 
 .rarity-lendario {
-  @apply text-amber-400 border-amber-500 bg-amber-900/50 animate-pulse-glow;
-  box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+  @apply text-primary border-primary/50 bg-primary/10 animate-pulse-glow;
+  box-shadow: 0 0 25px rgba(247, 183, 49, 0.3);
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar — Gold */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -192,5 +439,58 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-white/10 rounded-full hover:bg-primary;
+  @apply bg-primary/15 rounded-full hover:bg-primary/40;
+}
+
+/* Timer Gradient */
+.timer-gradient {
+  background: linear-gradient(135deg, rgba(247, 183, 49, 0.1), rgba(247, 183, 49, 0.02));
+}
+
+/* Glow variants */
+.glow-active {
+  box-shadow: 0 0 20px rgba(247, 183, 49, 0.3), inset 0 0 15px rgba(247, 183, 49, 0.05);
+}
+
+.glow-primary {
+  box-shadow: 0 0 25px rgba(247, 183, 49, 0.2);
+}
+
+/* Casino decorative borders */
+.casino-border-top {
+  position: relative;
+}
+
+.casino-border-top::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #F7B731, #FFD700, #F7B731, transparent);
+  opacity: 0.6;
+}
+
+/* Scanning line effect for unlock challenge */
+.scanning-line {
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #F7B731, transparent);
+  animation: scanLine 2s ease-in-out infinite;
+}
+
+@keyframes scanLine {
+
+  0%,
+  100% {
+    top: 20%;
+    opacity: 0.3;
+  }
+
+  50% {
+    top: 80%;
+    opacity: 0.8;
+  }
 }

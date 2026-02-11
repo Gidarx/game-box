@@ -84,6 +84,43 @@ export interface WildcardCard {
   icon: string;
 }
 
+export interface ScoringSettings {
+  triviaWinPoints: number;
+  duelWinPoints: number;
+}
+
+export interface PublicMetrics {
+  startedAt: number;
+  triviaRoundsResolved: number;
+  duelRoundsResolved: number;
+  avgRoundDurationMs: number;
+  triviaAccuracyRate: number;
+  totalTriviaPointsAwarded: number;
+  totalDuelPointsAwarded: number;
+  cardTypeCount: Record<string, number>;
+  deadliestCards: Array<{ word: string; impact: number }>;
+  teamWinRates: Record<string, {
+    triviaWins: number;
+    duelWins: number;
+    totalWins: number;
+    winRate: number;
+    teamName: string;
+  }>;
+  duelStats: {
+    total: number;
+    wins: number;
+    noWinner: number;
+    chooserTimeouts: number;
+    resolvedByTimeout: number;
+  };
+  scoringAdjustments: Array<{
+    at: number;
+    previous: number;
+    next: number;
+    reason: string;
+  }>;
+}
+
 export interface GameState {
   roomCode: string;
   hostSocketId: string | null;
@@ -105,9 +142,15 @@ export interface GameState {
   lockedKeys: number;
   chances: number;
   maxChances: number;
+  scoring: ScoringSettings;
+  autoBalanceScoring: boolean;
+  questionCategories: string[];
   currentWildcard: WildcardCard | null;
   timerEndAt: number | null;
+  duelOpponentId: string | null;
+  duelSelectEndAt: number | null;
   boxesOpened: number;
+  metrics: PublicMetrics;
   answeredCount: number;
   eligibleCount: number;
 }
@@ -116,10 +159,19 @@ export interface RoomSettings {
   mode: GameMode;
   boxCount: number;
   maxRounds: number;
+  questionCategories?: string[];
+  autoBalanceScoring?: boolean;
+  scoring?: ScoringSettings;
 }
 
 export const DEFAULT_SETTINGS: RoomSettings = {
   mode: 'solo',
   boxCount: 13,
   maxRounds: 30,
+  questionCategories: ['all'],
+  autoBalanceScoring: true,
+  scoring: {
+    triviaWinPoints: 10,
+    duelWinPoints: 120,
+  },
 };

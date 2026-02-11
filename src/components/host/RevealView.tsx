@@ -1,135 +1,248 @@
 ﻿'use client';
 
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { useState, useEffect, useRef } from 'react';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 interface Props {
     gameState: any;
-    onNext: () => void;
+    onContinue: () => void;
 }
 
-export default function RevealView({ gameState, onNext }: Props) {
-    const revealBoxId = gameState.lastRevealedBoxId ?? gameState.selectedBoxId;
-    const box = (gameState.boxes || []).find((b: any) => b.id === revealBoxId);
-    const attackerTeamId = box?.openedByTeamId || gameState.attackerTeamId;
-    const attackerTeam = attackerTeamId ? (gameState.teams as Record<string, any>)?.[attackerTeamId] : null;
+const RARITY_CONFIG: Record<string, { label: string; icon: string; color: string; border: string; bg: string; glow: string }> = {
+    comum: {
+        label: 'Comum',
+        icon: 'poker_chip',
+        color: 'text-gray-400',
+        border: 'border-gray-500/30',
+        bg: 'bg-gray-500/10',
+        glow: 'shadow-none',
+    },
+    raro: {
+        label: 'Raro',
+        icon: 'diamond',
+        color: 'text-accent-emerald',
+        border: 'border-accent-emerald/50',
+        bg: 'bg-accent-emerald/10',
+        glow: 'shadow-[0_0_40px_rgba(0,230,118,0.2)]',
+    },
+    lendario: {
+        label: 'Lendário',
+        icon: 'auto_awesome',
+        color: 'text-primary',
+        border: 'border-primary/50',
+        bg: 'bg-primary/10',
+        glow: 'shadow-[0_0_60px_rgba(247,183,49,0.3)]',
+    },
+};
 
+// Animated counter component
+function AnimatedCounter({ value, duration = 1.5 }: { value: number; duration?: number }) {
+    const [display, setDisplay] = useState(0);
+    const frameRef = useRef<number>(0);
+
+    useEffect(() => {
+        const start = performance.now();
+        const abs = Math.abs(value);
+
+        function animate(time: number) {
+            const elapsed = time - start;
+            const progress = Math.min(elapsed / (duration * 1000), 1);
+            // ease-out cubic
+            const eased = 1 - Math.pow(1 - progress, 3);
+            setDisplay(Math.round(eased * abs));
+
+            if (progress < 1) {
+                frameRef.current = requestAnimationFrame(animate);
+            }
+        }
+
+        frameRef.current = requestAnimationFrame(animate);
+        return () => cancelAnimationFrame(frameRef.current);
+    }, [value, duration]);
+
+    const sign = value < 0 ? '-' : '+';
+    return <>{sign}{display}</>;
+}
+
+// Particle ring for legendary items
+function ParticleRing({ count = 20, color }: { count?: number; color: string }) {
+    return (
+        <div className="absolute inset-0 pointer-events-none z-0">
+            {Array.from({ length: count }).map((_, i) => {
+                const angle = (360 / count) * i;
+                const delay = (i / count) * 2;
+                return (
+                    <motion.div
+                        key={i}
+                        initial={{ opacity: 0, scale: 0 }}
+                        animate={{
+                            opacity: [0, 1, 0],
+                            scale: [0, 1, 0.5],
+                            x: [0, Math.cos(angle * Math.PI / 180) * 120],
+                            y: [0, Math.sin(angle * Math.PI / 180) * 120],
+                        }}
+                        transition={{
+                            duration: 2,
+                            delay: 0.8 + delay,
+                            repeat: Infinity,
+                            repeatDelay: 1,
+                        }}
+                        style={{
+                            position: 'absolute',
+                            left: '50%',
+                            top: '50%',
+                            width: 4,
+                            height: 4,
+                            borderRadius: '50%',
+                            background: color,
+                            boxShadow: `0 0 8px ${color}`,
+                        }}
+                    />
+                );
+            })}
+        </div>
+    );
+}
+
+export default function RevealView({ gameState, onContinue }: Props) {
+    const box = gameState?.revealBox
+        || gameState?.boxes?.find((candidate: any) => candidate.id === gameState?.lastRevealedBoxId)
+        || null;
     if (!box) return null;
 
-    const rarityConfig: Record<string, { label: string; color: string; bg: string; shadow: string }> = {
-        comum: { label: 'Comum', color: 'text-gray-300', bg: 'bg-gray-500/20', shadow: 'shadow-none' },
-        raro: { label: 'Raro', color: 'text-cyan-300', bg: 'bg-cyan-500/20', shadow: 'shadow-[0_0_50px_rgba(6,182,212,0.3)]' },
-        lendario: { label: 'Lendário', color: 'text-amber-300', bg: 'bg-amber-500/20', shadow: 'shadow-[0_0_80px_rgba(245,158,11,0.5)]' },
-    };
-    const config = rarityConfig[box.rarity] || rarityConfig.comum;
+    const rarity = RARITY_CONFIG[box.rarity] || RARITY_CONFIG.comum;
+    const isPegadinha = box.points < 0;
+    const isLendario = box.rarity === 'lendario';
+    const deliveredByTeam = box.deliveredBy
+        ? gameState.teams?.[box.deliveredBy]?.name || `Equipe ${box.deliveredBy}`
+        : null;
 
     return (
-        <div className="flex-grow grid place-items-center animate-fade-in perspective-1000">
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex-1 flex items-center justify-center min-h-0 bg-background-dark text-white font-body p-4 rounded-3xl relative overflow-hidden"
+        >
+            {/* Background glow — pulsing for dramatic effect */}
             <motion.div
-                initial={{ rotateX: 20, opacity: 0, scale: 0.8 }}
-                animate={{ rotateX: 0, opacity: 1, scale: 1 }}
-                transition={{ type: "spring", duration: 0.8 }}
-                className="glass-panel rounded-[3rem] p-12 max-w-4xl w-full text-center relative overflow-hidden ring-1 ring-white/10"
+                animate={{
+                    scale: [1, 1.2, 1],
+                    opacity: [0.3, 0.6, 0.3],
+                }}
+                transition={{ duration: 3, repeat: Infinity }}
+                className={cn(
+                    "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-[150px] pointer-events-none",
+                    isPegadinha ? "bg-accent-red/15" : rarity.bg
+                )}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-background-dark via-transparent to-background-dark/50 pointer-events-none" />
+
+            {/* Legendary particle ring */}
+            {isLendario && !isPegadinha && (
+                <ParticleRing color="#F7B731" />
+            )}
+
+            <motion.div
+                initial={{ scale: 0.5, y: 60 }}
+                animate={{ scale: 1, y: 0 }}
+                transition={{ type: 'spring', bounce: 0.35, duration: 0.8 }}
+                className="relative z-10 flex flex-col items-center text-center max-w-lg"
             >
-                {/* Background Glow */}
-                <div className={cn("absolute inset-0 pointer-events-none opacity-50 blur-3xl", config.bg)} />
-                <div className={cn("absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full rounded-full opacity-20 blur-[100px]", config.bg)} />
+                {/* Rarity badge */}
+                <motion.div
+                    initial={{ scale: 0, rotateZ: -20 }}
+                    animate={{ scale: 1, rotateZ: 0 }}
+                    transition={{ delay: 0.3, type: 'spring', bounce: 0.5 }}
+                    className={cn("chip-badge mb-6", rarity.border, rarity.bg, rarity.color)}
+                >
+                    <span className="material-icons text-base">{rarity.icon}</span>
+                    {rarity.label}
+                </motion.div>
 
-                <div className="relative z-10 flex flex-col items-center">
-                    {/* Rarity Badge */}
-                    <motion.div
-                        initial={{ y: -50, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ delay: 0.2 }}
-                        className={cn("px-6 py-2 rounded-full border mb-8 backdrop-blur-md", config.bg, config.color.replace('text', 'border'))}
+                {/* Prize Icon — with rotation reveal */}
+                <motion.div
+                    initial={{ scale: 0, rotateZ: -45, rotateY: 90 }}
+                    animate={{ scale: 1, rotateZ: 0, rotateY: 0 }}
+                    transition={{ delay: 0.5, type: 'spring', bounce: 0.4, duration: 0.8 }}
+                    className={cn(
+                        "w-32 h-32 rounded-3xl grid place-items-center mb-8 border",
+                        rarity.bg, rarity.border, rarity.glow,
+                        isLendario && "animate-[revelationGlow_1.5s_ease-out_0.8s_forwards]"
+                    )}
+                    style={{ perspective: '600px' }}
+                >
+                    <motion.span
+                        animate={isLendario ? { rotateZ: [0, 5, -5, 0] } : {}}
+                        transition={isLendario ? { duration: 2, repeat: Infinity } : {}}
+                        className={cn("material-icons text-7xl", rarity.color)}
                     >
-                        <span className="text-sm font-black uppercase tracking-[0.2em] flex items-center gap-2">
-                            <span className="material-icons text-base">
-                                {box.rarity === 'lendario' ? 'auto_awesome' : box.rarity === 'raro' ? 'star' : 'inventory_2'}
+                        {box.icon || 'redeem'}
+                    </motion.span>
+                </motion.div>
+
+                {/* Prize Name */}
+                <motion.h1
+                    initial={{ y: 30, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.8 }}
+                    className={cn("text-4xl md:text-5xl font-display font-black uppercase tracking-wider", rarity.color)}
+                    style={rarity.color === 'text-primary' ? { textShadow: '0 0 30px rgba(247,183,49,0.4)' } : {}}
+                >
+                    {box.prizeLabel}
+                </motion.h1>
+
+                {/* Points — animated counter */}
+                <motion.div
+                    initial={{ y: 30, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 1.0 }}
+                    className="mt-4"
+                >
+                    {isPegadinha ? (
+                        <motion.div
+                            animate={{ scale: [1, 1.05, 1] }}
+                            transition={{ duration: 0.5, repeat: 3 }}
+                            className="flex items-center gap-3"
+                        >
+                            <span className="material-icons text-3xl text-accent-red animate-pulse">warning</span>
+                            <span className="text-5xl font-black text-accent-red text-glow-red">
+                                <AnimatedCounter value={box.points} duration={1.2} /> pts
                             </span>
-                            {config.label}
+                        </motion.div>
+                    ) : (
+                        <span className="text-5xl font-black text-accent-emerald text-glow-green">
+                            <AnimatedCounter value={box.points} duration={1.5} /> pts
                         </span>
-                    </motion.div>
-
-                    {/* Icon */}
-                    <motion.div
-                        initial={{ scale: 0, rotate: 180 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ type: "spring", bounce: 0.5, delay: 0.3 }}
-                        className={cn(
-                            "w-48 h-48 rounded-[3rem] border-4 flex items-center justify-center mb-8 bg-black/20 backdrop-blur-xl relative",
-                            config.color.replace('text', 'border'),
-                            config.shadow
-                        )}
-                    >
-                        <div className={cn("absolute inset-0 opacity-30 animate-pulse", config.bg)} />
-                        <span className={cn("material-icons text-9xl drop-shadow-2xl", config.color)}>{box.icon}</span>
-                    </motion.div>
-
-                    {/* Prize Name */}
-                    <motion.h1
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: 0.4 }}
-                        className="text-5xl md:text-7xl font-display font-black uppercase text-balance leading-none mb-4 text-glow"
-                    >
-                        {box.prizeLabel}
-                    </motion.h1>
-
-                    {/* Points */}
-                    <motion.div
-                        initial={{ scale: 0.5, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: 0.6, type: "spring" }}
-                        className="mb-8"
-                    >
-                        <p className={cn(
-                            "text-6xl md:text-8xl font-black font-mono tracking-tighter flex items-center justify-center gap-2",
-                            box.points >= 0 ? "text-emerald-400 drop-shadow-[0_0_30px_rgba(52,211,153,0.6)]" : "text-red-400 drop-shadow-[0_0_30px_rgba(248,113,113,0.6)]"
-                        )}>
-                            {box.points > 0 ? '+' : ''}{box.points}
-                            <span className="text-2xl font-body font-bold text-white/40 tracking-widest uppercase self-end mb-4">pts</span>
-                        </p>
-                    </motion.div>
-
-                    {/* Team Info */}
-                    {attackerTeam && (
-                        <motion.div
-                            initial={{ y: 20, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.8 }}
-                            className="bg-white/5 border border-white/10 rounded-2xl px-8 py-4 mb-8"
-                        >
-                            <p className="text-white/60 text-sm uppercase tracking-widest font-bold mb-1">Entregue para</p>
-                            <p className="text-2xl font-black text-white">{attackerTeam.name}</p>
-                        </motion.div>
                     )}
+                </motion.div>
 
-                    {/* Warnings */}
-                    {box.points < 0 && (
-                        <motion.div
-                            initial={{ width: 0, opacity: 0 }}
-                            animate={{ width: 'auto', opacity: 1 }}
-                            className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-red-500/20 border border-red-500/40 text-red-200 font-bold mb-8"
-                        >
-                            <span className="material-icons">warning_amber</span>
-                            <span className="uppercase tracking-wide text-xs">Pegadinha! Pontos Negativos</span>
-                        </motion.div>
-                    )}
-
-                    {/* Button */}
-                    <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={onNext}
-                        className="btn-primary px-12 py-5 text-lg rounded-2xl shadow-xl"
+                {/* Delivered By */}
+                {deliveredByTeam && (
+                    <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 1.2 }}
+                        className="mt-6 text-sm text-white/40 font-bold uppercase tracking-wider"
                     >
-                        Continuar
-                    </motion.button>
-                </div>
+                        Entregue por <span className="text-white/60">{deliveredByTeam}</span>
+                    </motion.p>
+                )}
+
+                {/* Continue Button */}
+                <motion.button
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1.5 }}
+                    onClick={onContinue}
+                    className="btn-primary mt-10 px-10 py-5 text-lg"
+                >
+                    <span className="material-icons">arrow_forward</span>
+                    Continuar
+                </motion.button>
             </motion.div>
-        </div>
+        </motion.div>
     );
 }

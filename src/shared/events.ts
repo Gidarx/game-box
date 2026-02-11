@@ -36,6 +36,7 @@ export const EVENTS = {
 
   // Duel
   DUEL_START: 'duel:start',
+  DUEL_SELECT_OPPONENT: 'duel:selectOpponent',
   DUEL_ANSWER: 'duel:answer',
   DUEL_RESULT: 'duel:result',
 

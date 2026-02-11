@@ -1,127 +1,88 @@
-﻿'use client';
+'use client';
 
-import { useState, useCallback } from 'react';
-import { motion, Reorder, AnimatePresence } from 'framer-motion';
-import { cn } from '@/lib/utils';
+import { useState } from 'react';
+import { Reorder } from 'framer-motion';
 
-interface RankingChallengeProps {
+type RankedItem = {
+    id: number;
+    label: string;
+};
+
+interface Props {
     question: string;
     items: string[];
     onSubmit: (order: number[]) => void;
     winnerName?: string;
 }
 
-export default function RankingChallenge({ question, items, onSubmit, winnerName }: RankingChallengeProps) {
-    // Simple state management for items, mapped to id for Reorder
-    const [orderedItems, setOrderedItems] = useState(() =>
-        items.map((item, i) => ({ id: `item-${i}`, label: item, originalIndex: i }))
+export default function RankingChallenge({ question, items, onSubmit, winnerName }: Props) {
+    const [rankedItems, setRankedItems] = useState<RankedItem[]>(
+        () => items.map((label, index) => ({ id: index, label }))
     );
     const [submitted, setSubmitted] = useState(false);
 
-    const handleSubmit = useCallback(() => {
+    const handleSubmit = () => {
         if (submitted) return;
         setSubmitted(true);
-        const order = orderedItems.map(item => item.originalIndex);
-        onSubmit(order);
-    }, [submitted, orderedItems, onSubmit]);
+        onSubmit(rankedItems.map((item) => item.id));
+    };
 
-    const posLabels = ['1º', '2º', '3º', '4º', '5º', '6º', '7º', '8º'];
+    const positionIcons = ['filter_1', 'filter_2', 'filter_3', 'filter_4', 'filter_5'];
 
     return (
-        <div className="flex-1 grid place-items-center animate-fade-in p-4">
-            <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="glass-panel rounded-[2rem] p-8 md:p-10 w-full max-w-3xl relative overflow-hidden"
-            >
-                {/* Header */}
-                <header className="text-center mb-8 relative z-10">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-pink/10 border border-accent-pink/20 mb-4">
-                        <span className="w-2 h-2 rounded-full bg-accent-pink animate-pulse" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-accent-pink">Desafio de Ranking</span>
+        <div className="flex-1 flex flex-col gap-5 animate-fade-in min-h-0 bg-background-dark text-white font-body p-4 rounded-3xl">
+            <header className="glass-panel rounded-2xl p-6 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+                <div className="flex items-center justify-between gap-4 mb-2">
+                    <div className="chip-badge">
+                        <span className="material-icons text-[14px] text-primary">sort</span>
+                        Desafio de Ranking
                     </div>
-
                     {winnerName && (
-                        <motion.div
-                            initial={{ y: -10, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            className="mb-6"
-                        >
-                            <span className="text-sm text-white/60 font-bold uppercase tracking-wider">Vez de</span>
-                            <h2 className="text-2xl font-black text-white">{winnerName}</h2>
-                        </motion.div>
+                        <span className="text-xs uppercase tracking-[0.18em] text-white/40 font-bold">
+                            Vez de {winnerName}
+                        </span>
                     )}
-
-                    <h3 className="text-3xl md:text-4xl font-black uppercase leading-tight text-balance">
-                        {question}
-                    </h3>
-                    <p className="text-white/40 mt-2 text-sm max-w-lg mx-auto">Arraste os itens para colocar na ordem correta</p>
-                </header>
-
-                {/* List */}
-                <div className="max-w-xl mx-auto mb-8 relative z-10">
-                    <Reorder.Group axis="y" values={orderedItems} onReorder={!submitted ? setOrderedItems : () => { }} className="space-y-3">
-                        {orderedItems.map((item, index) => (
-                            <Reorder.Item
-                                key={item.id}
-                                value={item}
-                                dragListener={!submitted}
-                                whileDrag={{ scale: 1.05, cursor: 'grabbing' }}
-                                className={cn(
-                                    "rounded-xl p-4 flex items-center gap-4 transition-all relative overflow-hidden",
-                                    submitted
-                                        ? "bg-surface-dark/50 border border-white/5 opacity-80"
-                                        : "bg-surface-dark border border-white/10 hover:border-white/30 cursor-grab active:cursor-grabbing shadow-lg"
-                                )}
-                            >
-                                <div className={cn(
-                                    "w-10 h-10 rounded-lg flex items-center justify-center font-black text-lg shadow-sm shrink-0",
-                                    index === 0 ? "bg-amber-500 text-black" :
-                                        index === 1 ? "bg-gray-400 text-black" :
-                                            index === 2 ? "bg-orange-700 text-white" :
-                                                "bg-white/5 text-white/30"
-                                )}>
-                                    {posLabels[index]}
-                                </div>
-                                <span className="flex-1 text-lg font-bold">{item.label}</span>
-                                {!submitted && <span className="material-icons text-white/20">drag_handle</span>}
-                            </Reorder.Item>
-                        ))}
-                    </Reorder.Group>
                 </div>
+                <h2 className="text-2xl md:text-3xl font-display font-black uppercase tracking-wide">{question}</h2>
+                <p className="text-sm text-white/40 mt-2">Arraste os itens para ordená-los corretamente</p>
+            </header>
 
-                {/* Actions */}
-                <div className="text-center relative z-10">
-                    <AnimatePresence mode="wait">
-                        {!submitted ? (
-                            <motion.button
-                                key="submit"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.9 }}
-                                onClick={handleSubmit}
-                                className="btn-primary px-10 py-4 text-lg rounded-2xl shadow-xl hover:shadow-primary/40"
-                            >
-                                Confirmar Ordem
-                            </motion.button>
-                        ) : (
-                            <motion.div
-                                key="processing"
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-surface-dark border border-white/10"
-                            >
-                                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                                <span className="text-sm font-bold uppercase tracking-wider text-white/60">Verificando...</span>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
+            <div className="flex-1 flex flex-col gap-3 min-h-0 overflow-y-auto px-2">
+                <Reorder.Group axis="y" values={rankedItems} onReorder={setRankedItems} className="space-y-3">
+                    {rankedItems.map((item, index) => (
+                        <Reorder.Item
+                            key={item.id}
+                            value={item}
+                            className="bg-surface-dark border border-primary/5 rounded-xl p-5 cursor-grab active:cursor-grabbing flex items-center gap-5 group transition-all hover:border-primary/20 hover:bg-primary/5"
+                        >
+                            <span className="material-icons text-2xl flex-shrink-0 text-primary/30">
+                                {positionIcons[index] || 'tag'}
+                            </span>
 
-                {/* Background Decor */}
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent-pink/50 to-transparent opacity-20" />
-                <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-accent-pink/10 blur-[80px] rounded-full pointer-events-none" />
-            </motion.div>
+                            <span className="text-lg font-bold flex-1">{item.label}</span>
+
+                            <span className="material-icons text-white/10 group-hover:text-primary/30 transition-colors">
+                                drag_indicator
+                            </span>
+                        </Reorder.Item>
+                    ))}
+                </Reorder.Group>
+            </div>
+
+            <footer className="glass-panel rounded-2xl p-5 flex items-center justify-between gap-4">
+                <p className="text-xs text-white/30 font-bold uppercase tracking-wider">
+                    {submitted ? 'Aguardando resultado...' : 'Ordene e confirme no telão'}
+                </p>
+                <button
+                    onClick={handleSubmit}
+                    disabled={submitted}
+                    className="btn-primary px-8 py-3 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                    <span className="material-icons">send</span>
+                    {submitted ? 'Enviado' : 'Confirmar Ordem'}
+                </button>
+            </footer>
         </div>
     );
 }

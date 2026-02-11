@@ -104,8 +104,8 @@ function decodeHTML(text) {
         .replace(/&otilde;/g, 'õ').replace(/&ecirc;/g, 'ê').replace(/&ocirc;/g, 'ô');
 }
 
-// ===== RANKING CHALLENGE BANK =====
-const RANKING_CHALLENGES = [
+// ===== RANKING CHALLENGE BANKS =====
+const ORDER_CHALLENGES = [
     { question: 'Ordene por número de seguidores no Instagram (mais → menos)', items: ['Cristiano Ronaldo', 'Lionel Messi', 'Selena Gomez', 'Kylie Jenner'], correctOrder: [0, 1, 2, 3] },
     { question: 'Ordene por população (maior → menor)', items: ['China', 'Índia', 'EUA', 'Brasil'], correctOrder: [1, 0, 2, 3] },
     { question: 'Ordene por ano de lançamento (mais antigo → recente)', items: ['iPhone', 'Facebook', 'YouTube', 'WhatsApp'], correctOrder: [1, 2, 0, 3] },
@@ -120,8 +120,87 @@ const RANKING_CHALLENGES = [
     { question: 'Ordene por PIB nominal (maior → menor)', items: ['EUA', 'China', 'Japão', 'Alemanha'], correctOrder: [0, 1, 2, 3] },
 ];
 
+const TRUE_FALSE_CHALLENGES = [
+    {
+        question: 'Marque Verdadeiro ou Falso para cada afirmação:', statements: [
+            { text: 'O Sol é uma estrela.', answer: true },
+            { text: 'O ser humano tem 206 ossos.', answer: true },
+            { text: 'A Grande Muralha da China é visível do espaço a olho nu.', answer: false },
+            { text: 'A água ferve a 100°C ao nível do mar.', answer: true },
+        ]
+    },
+    {
+        question: 'Verdadeiro ou Falso — Fatos Curiosos:', statements: [
+            { text: 'Os golfinhos dormem com um olho aberto.', answer: true },
+            { text: 'Raios nunca caem duas vezes no mesmo lugar.', answer: false },
+            { text: 'O coração de um camarão fica na cabeça.', answer: true },
+            { text: 'O Everest é a montanha mais alta medida da base.', answer: false },
+        ]
+    },
+    {
+        question: 'Verdadeiro ou Falso — História & Ciência:', statements: [
+            { text: 'Cleópatra viveu mais perto da construção da pizza do que das pirâmides.', answer: false },
+            { text: 'A luz do Sol leva ~8 minutos para chegar à Terra.', answer: true },
+            { text: 'Napoleão Bonaparte era baixo para a época dele.', answer: false },
+            { text: 'O DNA humano é 99% idêntico ao de chimpanzés.', answer: true },
+        ]
+    },
+    {
+        question: 'Verdadeiro ou Falso — Tecnologia:', statements: [
+            { text: 'O primeiro iPhone foi lançado em 2006.', answer: false },
+            { text: 'Bitcoin foi criado em 2009.', answer: true },
+            { text: 'A Nintendo foi fundada antes da Coca-Cola.', answer: true },
+            { text: 'O primeiro computador pesava mais de 27 toneladas.', answer: true },
+        ]
+    },
+    {
+        question: 'Verdadeiro ou Falso — Natureza:', statements: [
+            { text: 'Os polvos têm três corações.', answer: true },
+            { text: 'Os elefantes são os únicos animais que não conseguem pular.', answer: false },
+            { text: 'A banana é uma fruta e também uma baga.', answer: true },
+            { text: 'Uma água-viva é composta por 95% de água.', answer: true },
+        ]
+    },
+    {
+        question: 'Verdadeiro ou Falso — Esportes:', statements: [
+            { text: 'O Brasil é o país com mais títulos de Copa do Mundo.', answer: true },
+            { text: 'O basquete foi inventado nos EUA.', answer: false },
+            { text: 'Uma partida de tênis pode durar mais de 10 horas.', answer: true },
+            { text: 'O golfe já foi jogado na Lua.', answer: true },
+        ]
+    },
+];
+
+const ESTIMATION_CHALLENGES = [
+    { question: 'Quantos países existem no mundo?', answer: 195, tolerance: 10 },
+    { question: 'Qual a altura da Torre Eiffel em metros?', answer: 330, tolerance: 30 },
+    { question: 'Em que ano foi fundada a empresa Apple?', answer: 1976, tolerance: 3 },
+    { question: 'Quantos ossos tem o corpo humano adulto?', answer: 206, tolerance: 15 },
+    { question: 'Qual a velocidade da luz em km/s (arredondado)?', answer: 300000, tolerance: 20000 },
+    { question: 'Quantos litros de sangue o corpo humano tem (em média)?', answer: 5, tolerance: 1 },
+    { question: 'Em que ano caiu o Muro de Berlim?', answer: 1989, tolerance: 2 },
+    { question: 'Qual a distância da Terra à Lua em km (arredondado)?', answer: 384400, tolerance: 30000 },
+    { question: 'Quantas teclas tem um piano padrão?', answer: 88, tolerance: 5 },
+    { question: 'Qual o QI médio de um ser humano?', answer: 100, tolerance: 8 },
+    { question: 'Quantos estados tem o Brasil?', answer: 26, tolerance: 2 },
+    { question: 'Em que ano o homem pisou na Lua pela primeira vez?', answer: 1969, tolerance: 2 },
+];
+
 function getRandomRanking() {
-    return RANKING_CHALLENGES[Math.floor(Math.random() * RANKING_CHALLENGES.length)];
+    const types = ['order', 'true_false', 'estimation'];
+    const type = types[Math.floor(Math.random() * types.length)];
+
+    if (type === 'true_false') {
+        const challenge = TRUE_FALSE_CHALLENGES[Math.floor(Math.random() * TRUE_FALSE_CHALLENGES.length)];
+        return { type: 'true_false', question: challenge.question, statements: challenge.statements };
+    }
+    if (type === 'estimation') {
+        const challenge = ESTIMATION_CHALLENGES[Math.floor(Math.random() * ESTIMATION_CHALLENGES.length)];
+        return { type: 'estimation', question: challenge.question, answer: challenge.answer, tolerance: challenge.tolerance };
+    }
+    // default: order
+    const challenge = ORDER_CHALLENGES[Math.floor(Math.random() * ORDER_CHALLENGES.length)];
+    return { type: 'order', question: challenge.question, items: challenge.items, correctOrder: challenge.correctOrder };
 }
 
 function scoreRanking(playerOrder, correctOrder) {
@@ -399,12 +478,12 @@ app.prepare().then(() => {
             callback?.({ success: true });
         });
 
-        // ===== RANKING CHALLENGE (host submits order) =====
+        // ===== RANKING CHALLENGE (host submits answer) =====
         socket.on('ranking:submit', (data, callback) => {
             const roomCode = normalizeCode(data.roomCode);
             const room = rooms.get(roomCode);
             if (!room || room.phase !== 'ranking_challenge' || !room.currentRanking || !isHost(room)) return callback?.({ success: false });
-            const result = resolveRankingChallenge(room, roomCode, io, data.order, 'host_submit');
+            const result = resolveRankingChallenge(room, roomCode, io, data.answer ?? data.order, 'host_submit');
             callback?.(result);
         });
 
@@ -1311,7 +1390,7 @@ function getAutoRankingOrder(room) {
     return shuffleArray(baseOrder);
 }
 
-function resolveRankingChallenge(room, roomCode, io, order, source = 'host_submit') {
+function resolveRankingChallenge(room, roomCode, io, data, source = 'host_submit') {
     if (room.phase !== 'ranking_challenge' || !room.currentRanking) {
         return { success: false, error: 'Ranking nao esta ativo' };
     }
@@ -1320,13 +1399,47 @@ function resolveRankingChallenge(room, roomCode, io, order, source = 'host_submi
     room.timerEndAt = null;
 
     const currentRanking = room.currentRanking;
-    const normalizedOrder = Array.isArray(order) ? order.map((value) => Number(value)) : [];
-    const itemCount = currentRanking.correctOrder.length;
-    const safeOrder = normalizedOrder.length === itemCount
-        ? normalizedOrder
-        : getAutoRankingOrder(room);
+    const challengeType = currentRanking.type || 'order';
+    let correctCount = 0;
+    let resultPayload = {};
 
-    const correctCount = scoreRanking(safeOrder, currentRanking.correctOrder);
+    if (challengeType === 'order') {
+        const normalizedOrder = Array.isArray(data) ? data.map((value) => Number(value)) : [];
+        const itemCount = currentRanking.correctOrder.length;
+        const safeOrder = normalizedOrder.length === itemCount
+            ? normalizedOrder
+            : getAutoRankingOrder(room);
+        correctCount = scoreRanking(safeOrder, currentRanking.correctOrder);
+        resultPayload = {
+            type: 'order',
+            correctOrder: currentRanking.correctOrder,
+        };
+    } else if (challengeType === 'true_false') {
+        const answers = Array.isArray(data) ? data : [];
+        const statements = currentRanking.statements || [];
+        correctCount = 0;
+        for (let i = 0; i < statements.length; i++) {
+            if (answers[i] === statements[i].answer) correctCount++;
+        }
+        resultPayload = {
+            type: 'true_false',
+            correctAnswers: statements.map(s => s.answer),
+        };
+    } else if (challengeType === 'estimation') {
+        const guess = typeof data === 'number' ? data : Number(data) || 0;
+        const answer = currentRanking.answer;
+        const tolerance = currentRanking.tolerance || 10;
+        const diff = Math.abs(guess - answer);
+        const accuracy = Math.max(0, 1 - diff / (tolerance * 3));
+        correctCount = accuracy >= 0.9 ? 4 : accuracy >= 0.5 ? 3 : accuracy >= 0.2 ? 2 : 1;
+        resultPayload = {
+            type: 'estimation',
+            correctAnswer: answer,
+            playerGuess: guess,
+            accuracy: Math.round(accuracy * 100),
+        };
+    }
+
     const chances = correctCount >= 4 ? room.maxChances : Math.max(1, room.maxChances - 1);
 
     room.chances = chances;
@@ -1335,9 +1448,9 @@ function resolveRankingChallenge(room, roomCode, io, order, source = 'host_submi
 
     io.to(roomCode).emit('ranking:result', {
         correctCount,
-        correctOrder: currentRanking.correctOrder,
         chances,
         source,
+        ...resultPayload,
     });
 
     setTimeout(() => {
@@ -1355,12 +1468,23 @@ function startRankingChallenge(room, roomCode, io) {
     room.phase = 'ranking_challenge';
     room.timerEndAt = Date.now() + applyGameSpeed(DEFAULT_RANKING_TIMEOUT_MS);
 
-    io.to(roomCode).emit('game:phaseChange', { phase: 'ranking_challenge' });
-    io.to(roomCode).emit('ranking:show', {
+    const rankingPayload = {
+        type: room.currentRanking.type || 'order',
         question: room.currentRanking.question,
-        items: room.currentRanking.items,
         timerEndAt: room.timerEndAt,
-    });
+    };
+    // Add type-specific data
+    if (room.currentRanking.type === 'order') {
+        rankingPayload.items = room.currentRanking.items;
+    } else if (room.currentRanking.type === 'true_false') {
+        rankingPayload.statements = room.currentRanking.statements.map(s => ({ text: s.text }));
+    } else if (room.currentRanking.type === 'estimation') {
+        // Don't send the answer to the client!
+        rankingPayload.hint = `A resposta é um número`;
+    }
+
+    io.to(roomCode).emit('game:phaseChange', { phase: 'ranking_challenge' });
+    io.to(roomCode).emit('ranking:show', rankingPayload);
     io.to(roomCode).emit('game:stateSync', sanitizeState(room));
 
     room._rankingTimeout = setTimeout(() => {

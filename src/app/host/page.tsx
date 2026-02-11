@@ -7,7 +7,7 @@ import type { BGMPhase } from '@/hooks/useAudio';
 import HostLobby from '@/components/host/Lobby';
 import Gameboard from '@/components/host/Gameboard';
 import TriviaView from '@/components/host/TriviaView';
-import RankingChallenge from '@/components/host/RankingChallenge';
+import RankingRouter from '@/components/host/RankingRouter';
 import CardGrid from '@/components/host/CardGrid';
 import WildcardOverlay from '@/components/host/WildcardOverlay';
 import RevealView from '@/components/host/RevealView';
@@ -21,7 +21,7 @@ export default function HostPage() {
     const [gameState, setGameState] = useState<any>(null);
     const [roomCode, setRoomCode] = useState<string | null>(null);
     const [serverInfo, setServerInfo] = useState<{ localIP: string; port: number; playerUrl: string } | null>(null);
-    const [rankingData, setRankingData] = useState<{ question: string; items: string[] } | null>(null);
+    const [rankingData, setRankingData] = useState<any>(null);
     const [rankingResult, setRankingResult] = useState<any>(null);
     const [isMuted, setIsMuted] = useState(false);
     const initialized = useRef(false);
@@ -145,7 +145,21 @@ export default function HostPage() {
 
     const submitRanking = useCallback((order: number[]) => {
         if (!roomCode) return;
-        emit('ranking:submit', { roomCode, order }, (res: any) => {
+        emit('ranking:submit', { roomCode, answer: order }, (res: any) => {
+            if (res) setRankingResult(res);
+        });
+    }, [roomCode, emit]);
+
+    const submitTrueFalse = useCallback((answers: boolean[]) => {
+        if (!roomCode) return;
+        emit('ranking:submit', { roomCode, answer: answers }, (res: any) => {
+            if (res) setRankingResult(res);
+        });
+    }, [roomCode, emit]);
+
+    const submitEstimation = useCallback((guess: number) => {
+        if (!roomCode) return;
+        emit('ranking:submit', { roomCode, answer: guess }, (res: any) => {
             if (res) setRankingResult(res);
         });
     }, [roomCode, emit]);
@@ -249,11 +263,11 @@ export default function HostPage() {
                 )}
 
                 {phase === 'ranking_challenge' && rankingData && !rankingResult && (
-                    <RankingChallenge
-                        key={`${rankingData.question}-${rankingData.items.join('|')}`}
-                        question={rankingData.question}
-                        items={rankingData.items}
-                        onSubmit={submitRanking}
+                    <RankingRouter
+                        rankingData={rankingData}
+                        onSubmitOrder={submitRanking}
+                        onSubmitTrueFalse={submitTrueFalse}
+                        onSubmitEstimation={submitEstimation}
                         winnerName={gameState.triviaWinnerId ? gameState.players?.[gameState.triviaWinnerId]?.name : undefined}
                     />
                 )}

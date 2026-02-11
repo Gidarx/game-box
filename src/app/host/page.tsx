@@ -279,7 +279,10 @@ export default function HostPage() {
                                 {rankingResult.correctCount >= 4 ? 'stars' : rankingResult.correctCount >= 2 ? 'thumb_up' : 'thumb_down'}
                             </span>
                             <h2 className="text-5xl font-black mb-3">
-                                {rankingResult.correctCount}/4 corretas!
+                                {rankingResult.type === 'estimation'
+                                    ? `${rankingResult.accuracy || 0}% precisão!`
+                                    : `${rankingResult.correctCount}/4 corretas!`
+                                }
                             </h2>
                             <p className="text-2xl font-bold text-primary">
                                 Voce ganha <span className="text-4xl">{rankingResult.chances}</span> chances de abrir cartas!

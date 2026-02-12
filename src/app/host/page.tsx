@@ -197,6 +197,11 @@ export default function HostPage() {
         });
     }, [roomCode, emit]);
 
+    const handleToggleMute = useCallback(() => {
+        const nowMuted = audio.toggleMute();
+        setIsMuted(nowMuted);
+    }, [audio]);
+
     if (!isConnected) {
         return (
             <div className="min-h-screen flex items-center justify-center">
@@ -220,11 +225,6 @@ export default function HostPage() {
     }
 
     const phase = gameState.phase;
-
-    const handleToggleMute = useCallback(() => {
-        const nowMuted = audio.toggleMute();
-        setIsMuted(nowMuted);
-    }, [audio]);
 
     if (phase === 'lobby') {
         return (

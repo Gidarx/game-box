@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -62,27 +62,44 @@ export default function TriviaView({ gameState }: Props) {
     const totalTime = Math.max(1, Number(question?.timeLimit) || 12);
     const [now, setNow] = useState(() => Date.now());
     const [showCountdown, setShowCountdown] = useState(false);
-    const questionIdRef = useRef<string | null>(null);
+    const [countdownKey, setCountdownKey] = useState(0);
+    const lastCountdownTimerRef = useRef<number>(0);
+    const clockOffsetMsRef = useRef(0);
+    const handleCountdownComplete = useCallback(() => {
+        setShowCountdown(false);
+    }, []);
 
-    // Trigger countdown on new question
+    // Trigger countdown on each new timed trivia question.
     useEffect(() => {
-        const qId = question?.id || question?.text;
-        if (qId && qId !== questionIdRef.current) {
-            questionIdRef.current = qId;
+        const timerEndAt = Number(gameState?.timerEndAt) || 0;
+        if (gameState?.phase !== 'trivia_all' || !timerEndAt) return;
+        if (timerEndAt === lastCountdownTimerRef.current) return;
+
+        lastCountdownTimerRef.current = timerEndAt;
+        const frame = requestAnimationFrame(() => {
+            setCountdownKey((value) => value + 1);
             setShowCountdown(true);
-        }
-    }, [question?.id, question?.text]);
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [gameState?.phase, gameState?.timerEndAt]);
 
     useEffect(() => {
         const timerEndAt = Number(gameState?.timerEndAt) || 0;
         if (!timerEndAt || gameState?.phase !== 'trivia_all') return;
 
         const interval = setInterval(() => {
-            setNow(Date.now());
+            setNow(Date.now() + clockOffsetMsRef.current);
         }, 100);
 
         return () => clearInterval(interval);
     }, [gameState?.timerEndAt, gameState?.phase]);
+
+    useEffect(() => {
+        const serverNow = Number(gameState?.serverNow) || 0;
+        if (!serverNow) return;
+        clockOffsetMsRef.current = serverNow - Date.now();
+        setNow(Date.now() + clockOffsetMsRef.current);
+    }, [gameState?.serverNow]);
 
     const timerEndAt = Number(gameState?.timerEndAt) || 0;
     const timeLeft = timerEndAt
@@ -109,7 +126,7 @@ export default function TriviaView({ gameState }: Props) {
             {/* Countdown Overlay */}
             <AnimatePresence>
                 {showCountdown && (
-                    <CountdownOverlay onComplete={() => setShowCountdown(false)} />
+                    <CountdownOverlay key={countdownKey} onComplete={handleCountdownComplete} />
                 )}
             </AnimatePresence>
 

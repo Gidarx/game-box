@@ -194,11 +194,21 @@ async function driveUntilPhaseActionable({ host, roomCode, tracker, targetPhase,
                 order: [0, 1, 2, 3],
             });
         } else if (state?.phase === 'card_open') {
-            const hiddenCard = (state.cardGrid || []).find((card) => card.status === 'hidden');
-            if (hiddenCard) {
-                await emitAck(host, 'card:open', { roomCode, cardId: hiddenCard.id });
+            if (state.pendingKeywordCardId) {
+                const pendingCard = (state.cardGrid || []).find((card) => card.id === state.pendingKeywordCardId);
+                const pendingWord = String(pendingCard?.word || '').toUpperCase();
+                if (targetPhase === 'duel' && pendingWord !== 'DUELO') {
+                    await emitAck(host, 'card:skipKeywordTest', { roomCode, cardId: state.pendingKeywordCardId });
+                } else {
+                    await emitAck(host, 'card:testKeyword', { roomCode, cardId: state.pendingKeywordCardId });
+                }
             } else {
-                host.emit('host:forceNext', { roomCode });
+                const hiddenCard = (state.cardGrid || []).find((card) => card.status === 'hidden');
+                if (hiddenCard) {
+                    await emitAck(host, 'card:open', { roomCode, cardId: hiddenCard.id });
+                } else {
+                    host.emit('host:forceNext', { roomCode });
+                }
             }
         }
 
@@ -256,8 +266,8 @@ test('ranking timeout resolves phase without host submit', async () => {
         await emitAck(host, 'box:select', { roomCode, boxId: nextBox.id });
 
         await tracker.waitFor((state) => state?.phase === 'ranking_challenge', 12000);
-        await tracker.waitFor((state) => state?.phase === 'card_open', 20000);
-        assert.equal(tracker.state.phase, 'card_open');
+        await tracker.waitFor((state) => state?.phase === 'card_open' || state?.phase === 'trivia_all', 20000);
+        assert.ok(['card_open', 'trivia_all'].includes(tracker.state.phase));
     } finally {
         await setup.cleanup();
     }
@@ -329,8 +339,8 @@ test('player rejoin during ranking phase does not stall game flow', async () => 
         assert.equal(rejoinResult.success, true);
         reconnectingPlayer.socket = rejoinSocket;
 
-        await tracker.waitFor((state) => state?.phase === 'card_open', 22000);
-        assert.equal(tracker.state.phase, 'card_open');
+        await tracker.waitFor((state) => state?.phase === 'card_open' || state?.phase === 'trivia_all', 22000);
+        assert.ok(['card_open', 'trivia_all'].includes(tracker.state.phase));
     } finally {
         await setup.cleanup();
     }

@@ -3,6 +3,8 @@ function registerBoardHandlers(context) {
     socket.on('box:select', (data, callback) => onBoxSelect(context, data, callback));
     socket.on('ranking:submit', (data, callback) => onRankingSubmit(context, data, callback));
     socket.on('card:open', (data, callback) => onCardOpen(context, data, callback));
+    socket.on('card:testKeyword', (data, callback) => onCardTestKeyword(context, data, callback));
+    socket.on('card:skipKeywordTest', (data, callback) => onCardSkipKeywordTest(context, data, callback));
 }
 
 function onBoxSelect(context, data, callback) {
@@ -22,6 +24,7 @@ function onBoxSelect(context, data, callback) {
     room.lastRevealedBoxId = null;
     room.cardGrid = generateCardGrid(box);
     room.lockedKeys = 0;
+    room.pendingKeywordCardId = null;
     room.attackerTeamId = room.triviaWinnerId ? room.players[room.triviaWinnerId]?.teamId || null : null;
 
     io.to(roomCode).emit('box:selected', { boxId: box.id, box });
@@ -53,51 +56,130 @@ function onCardOpen(context, data, callback) {
     if (!room || room.phase !== 'card_open' || room.chances <= 0 || !isHost(room)) {
         return callback?.({ success: false });
     }
+    if (room.pendingKeywordCardId) {
+        return callback?.({ success: false, error: 'Finalize o teste da carta revelada antes de abrir outra' });
+    }
 
     const card = room.cardGrid.find((item) => item.id === data?.cardId && item.status === 'hidden');
     if (!card) return callback?.({ success: false, error: 'Carta invalida' });
-    card.status = 'revealed';
 
-    if (card.type === 'key') {
-        const endedByKey = openKeyCard(context, room, roomCode, card);
-        if (endedByKey) return callback?.({ success: true });
-    } else if (card.type === 'lost_turn') {
-        openLostTurnCard(context, room, roomCode, card);
-    } else if (card.type === 'duel') {
-        openDuelCard(context, room, roomCode, card);
-    } else {
-        openDistractorCard(context, room, roomCode, card);
+    card.status = 'revealed';
+    card.tested = false;
+
+    // Special cards resolve immediately after reveal (no test/skip decision).
+    if (card.type === 'lost_turn') {
+        card.tested = true;
+        room.pendingKeywordCardId = null;
+        openLostTurnCardTest(context, room, roomCode, card);
+        return callback?.({ success: true, autoResolved: true, type: 'lost_turn' });
+    }
+    if (card.type === 'duel') {
+        card.tested = true;
+        room.pendingKeywordCardId = null;
+        room.chances = Math.max(0, Number(room.chances || 0) - 1);
+        openDuelCardTest(context, room, roomCode, card);
+        return callback?.({ success: true, autoResolved: true, type: 'duel' });
     }
 
+    room.pendingKeywordCardId = card.id;
+
     emitBoardState(context, room, roomCode);
-    callback?.({ success: true });
+    callback?.({ success: true, pendingCardId: card.id });
 }
 
-function openKeyCard(context, room, roomCode, card) {
-    const { io, operations } = context;
-    const { applyGameSpeed, getPublicGrid, openBox, recordCardTelemetry, sanitizeState } = operations;
+function onCardTestKeyword(context, data, callback) {
+    const { io, rooms, guards, operations } = context;
+    const { isHost, normalizeCode } = guards;
+    const { applyGameSpeed, backToTrivia, openBox, recordCardTelemetry } = operations;
 
-    recordCardTelemetry(room, card, 0);
-    room.lockedKeys++;
-    card.status = 'locked';
+    const roomCode = normalizeCode(data?.roomCode);
+    const room = rooms.get(roomCode);
+    if (!room || room.phase !== 'card_open' || !isHost(room)) {
+        return callback?.({ success: false });
+    }
+    if (room.chances <= 0) return callback?.({ success: false, error: 'Sem chances para testar palavra' });
+    if (!room.pendingKeywordCardId) return callback?.({ success: false, error: 'Nenhuma carta pendente para teste' });
+    if (Number(data?.cardId) && Number(data.cardId) !== room.pendingKeywordCardId) {
+        return callback?.({ success: false, error: 'Carta pendente diferente da selecionada' });
+    }
 
+    const card = room.cardGrid.find((item) => item.id === room.pendingKeywordCardId);
+    if (!card || card.status !== 'revealed') return callback?.({ success: false, error: 'Carta pendente invalida' });
+
+    room.pendingKeywordCardId = null;
+    card.tested = true;
+
+    if (card.type === 'key') {
+        room.chances = Math.max(0, Number(room.chances || 0) - 1);
+        recordCardTelemetry(room, card, 0);
+        room.lockedKeys++;
+        card.status = 'locked';
+
+        io.to(roomCode).emit('card:opened', {
+            cardId: card.id,
+            word: card.word,
+            type: 'key',
+            lockedKeys: room.lockedKeys,
+            chances: room.chances,
+        });
+
+        emitBoardState(context, room, roomCode);
+
+        if (room.lockedKeys >= 3) {
+            setTimeout(() => openBox(room, roomCode, io), applyGameSpeed(1200));
+        }
+
+        return callback?.({ success: true, correct: true, chances: room.chances, lockedKeys: room.lockedKeys });
+    }
+
+    if (card.type === 'lost_turn') {
+        openLostTurnCardTest(context, room, roomCode, card);
+        return callback?.({ success: true, correct: false, chances: room.chances, lockedKeys: room.lockedKeys, type: 'lost_turn' });
+    }
+    if (card.type === 'duel') {
+        room.chances = Math.max(0, Number(room.chances || 0) - 1);
+        openDuelCardTest(context, room, roomCode, card);
+        return callback?.({ success: true, correct: false, chances: room.chances, lockedKeys: room.lockedKeys, type: 'duel' });
+    }
+
+    room.chances = Math.max(0, Number(room.chances || 0) - 1);
+    recordCardTelemetry(room, card, 1);
     io.to(roomCode).emit('card:opened', {
         cardId: card.id,
         word: card.word,
-        type: 'key',
+        type: 'distractor',
         lockedKeys: room.lockedKeys,
         chances: room.chances,
     });
+    emitBoardState(context, room, roomCode);
 
-    if (room.lockedKeys < 3) return false;
+    if (room.chances <= 0) {
+        setTimeout(() => backToTrivia(room, roomCode, io), applyGameSpeed(1200));
+    }
 
-    setTimeout(() => openBox(room, roomCode, io), applyGameSpeed(1500));
-    io.to(roomCode).emit('card:gridState', { grid: getPublicGrid(room.cardGrid) });
-    io.to(roomCode).emit('game:stateSync', sanitizeState(room));
-    return true;
+    callback?.({ success: true, correct: false, chances: room.chances, lockedKeys: room.lockedKeys });
 }
 
-function openLostTurnCard(context, room, roomCode, card) {
+function onCardSkipKeywordTest(context, data, callback) {
+    const { rooms, guards } = context;
+    const { isHost, normalizeCode } = guards;
+
+    const roomCode = normalizeCode(data?.roomCode);
+    const room = rooms.get(roomCode);
+    if (!room || room.phase !== 'card_open' || !isHost(room)) {
+        return callback?.({ success: false });
+    }
+    if (!room.pendingKeywordCardId) return callback?.({ success: false, error: 'Nenhuma carta pendente para pular' });
+    if (Number(data?.cardId) && Number(data.cardId) !== room.pendingKeywordCardId) {
+        return callback?.({ success: false, error: 'Carta pendente diferente da selecionada' });
+    }
+
+    room.pendingKeywordCardId = null;
+    emitBoardState(context, room, roomCode);
+    callback?.({ success: true, skipped: true, chances: room.chances });
+}
+
+function openLostTurnCardTest(context, room, roomCode, card) {
     const { io, operations } = context;
     const { applyGameSpeed, backToTrivia, recordCardTelemetry } = operations;
 
@@ -113,10 +195,11 @@ function openLostTurnCard(context, room, roomCode, card) {
         chances: 0,
     });
 
-    setTimeout(() => backToTrivia(room, roomCode, io), applyGameSpeed(2500));
+    emitBoardState(context, room, roomCode);
+    setTimeout(() => backToTrivia(room, roomCode, io), applyGameSpeed(1200));
 }
 
-function openDuelCard(context, room, roomCode, card) {
+function openDuelCardTest(context, room, roomCode, card) {
     const { io, constants, operations } = context;
     const { DEFAULT_DUEL_SELECT_TIMEOUT_MS } = constants;
     const {
@@ -133,7 +216,6 @@ function openDuelCard(context, room, roomCode, card) {
     } = operations;
 
     recordCardTelemetry(room, card, 0);
-    room.chances--;
     room._duelCardId = card.id;
     room.phase = 'duel';
     room.duelOpponentId = null;
@@ -179,26 +261,8 @@ function openDuelCard(context, room, roomCode, card) {
             }, 650);
         }
     }
-}
 
-function openDistractorCard(context, room, roomCode, card) {
-    const { io, operations } = context;
-    const { applyGameSpeed, backToTrivia, recordCardTelemetry } = operations;
-
-    recordCardTelemetry(room, card, 1);
-    room.chances--;
-
-    io.to(roomCode).emit('card:opened', {
-        cardId: card.id,
-        word: card.word,
-        type: 'distractor',
-        lockedKeys: room.lockedKeys,
-        chances: room.chances,
-    });
-
-    if (room.chances <= 0) {
-        setTimeout(() => backToTrivia(room, roomCode, io), applyGameSpeed(2000));
-    }
+    emitBoardState(context, room, roomCode);
 }
 
 function emitBoardState(context, room, roomCode) {

@@ -3,6 +3,7 @@ function registerLobbyHandlers(context) {
     socket.on('room:create', (settings, callback) => onRoomCreate(context, settings, callback));
     socket.on('room:join', (data, callback) => onRoomJoin(context, data, callback));
     socket.on('room:rejoin', (data, callback) => onRoomRejoin(context, data, callback));
+    socket.on('host:rejoin', (data, callback) => onHostRejoin(context, data, callback));
     socket.on('room:playerReady', (data, callback) => onPlayerReady(context, data, callback));
     socket.on('game:settingsUpdate', (data) => onSettingsUpdate(context, data));
     socket.on('host:addBots', (data, callback) => onHostAddBots(context, data, callback));
@@ -85,6 +86,29 @@ function onRoomRejoin(context, data, callback) {
 
     io.to(roomCode).emit('game:stateSync', sanitizeState(room));
     callback?.({ success: true, playerId, state: sanitizeState(room) });
+}
+
+function onHostRejoin(context, data, callback) {
+    const { socket, io, rooms, guards, operations } = context;
+    const { normalizeCode } = guards;
+    const { sanitizeState } = operations;
+
+    const roomCode = normalizeCode(data?.roomCode);
+    const room = rooms.get(roomCode);
+    if (!room) return callback?.({ success: false, error: 'Sala nao encontrada' });
+
+    const previousHostSocketId = room.hostSocketId;
+    const sameHostSocket = previousHostSocketId === socket.id;
+    const hostStillConnected = !!previousHostSocketId && io.sockets.sockets.has(previousHostSocketId);
+
+    if (!sameHostSocket && hostStillConnected) {
+        return callback?.({ success: false, error: 'Host ja conectado' });
+    }
+
+    room.hostSocketId = socket.id;
+    socket.join(roomCode);
+    io.to(roomCode).emit('game:stateSync', sanitizeState(room));
+    callback?.({ success: true, state: sanitizeState(room) });
 }
 
 function onPlayerReady(context, data, callback) {

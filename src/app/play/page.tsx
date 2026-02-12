@@ -561,6 +561,7 @@ function PlayerContent() {
     const gameStateRef = useRef<any>(null);
     const phaseRef = useRef(phase);
     const answerEventRef = useRef<'trivia:answer' | 'duel:answer'>('trivia:answer');
+    const clockOffsetMsRef = useRef(0);
 
     // Init from Storage/URL
     useEffect(() => {
@@ -596,6 +597,13 @@ function PlayerContent() {
         if (/Android/.test(ua)) return 'Android';
         if (/iPad/.test(ua)) return 'iPad';
         return 'Mobile';
+    }, []);
+
+    const updateClockOffset = useCallback((serverNow: unknown) => {
+        const numericServerNow = Number(serverNow);
+        if (Number.isFinite(numericServerNow) && numericServerNow > 0) {
+            clockOffsetMsRef.current = numericServerNow - Date.now();
+        }
     }, []);
 
     const syncPhase = useCallback((state: any, pid: string | null) => {
@@ -650,6 +658,7 @@ function PlayerContent() {
     useEffect(() => {
         // State Sync
         const onStateSync = (state: any) => {
+            updateClockOffset(state?.serverNow);
             setGameState(state);
             setTimerEndAt(state?.timerEndAt || null);
             if (state?.phase === 'trivia_all' && state.currentQuestion) {
@@ -693,6 +702,7 @@ function PlayerContent() {
         };
 
         const onTriviaQuestion = (data: any) => {
+            updateClockOffset(data?.serverNow);
             setQuestion(data.question);
             setTimerEndAt(data.timerEndAt);
             setPhase('trivia');
@@ -748,6 +758,7 @@ function PlayerContent() {
         };
 
         const onDuelStart = (data: any) => {
+            updateClockOffset(data?.serverNow);
             const pid = playerIdRef.current;
             const participants = Array.isArray(data.playerIds)
                 ? data.playerIds
@@ -830,13 +841,14 @@ function PlayerContent() {
         ];
 
         return () => subs.forEach(u => u());
-    }, [on, syncPhase]);
+    }, [on, syncPhase, audio, updateClockOffset]);
 
     // Timer Logic
     useEffect(() => {
         if (phase !== 'trivia' || !timerEndAt) return;
         const interval = setInterval(() => {
-            const remaining = Math.max(0, Math.ceil((timerEndAt - Date.now()) / 1000));
+            const now = Date.now() + clockOffsetMsRef.current;
+            const remaining = Math.max(0, Math.ceil((timerEndAt - now) / 1000));
             setTimeLeft(remaining);
         }, 100);
         return () => clearInterval(interval);
@@ -852,6 +864,7 @@ function PlayerContent() {
             device: getDevice()
         }, (res: any) => {
             if (res?.success) {
+                updateClockOffset(res?.state?.serverNow);
                 setGameState(res.state);
                 syncPhase(res.state, playerId);
                 emit('room:playerReady', { roomCode: roomCode.toUpperCase(), playerId }, () => { });
@@ -861,7 +874,7 @@ function PlayerContent() {
                 setPhase('join');
             }
         });
-    }, [isConnected, roomCode, playerId, playerName, getDevice, emit, syncPhase]);
+    }, [isConnected, roomCode, playerId, playerName, getDevice, emit, syncPhase, updateClockOffset]);
 
     // Actions
     const handleJoin = () => {

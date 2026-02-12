@@ -157,7 +157,7 @@ app.prepare().then(() => {
     httpServer.listen(port, hostname, () => {
         const localIP = getLocalIP();
         console.log('\n========================================');
-        console.log('  ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â® CAIXA MISTERIOSA - GAME SERVER');
+        console.log('  [GAMEBOX] CAIXA MISTERIOSA - GAME SERVER');
         console.log('========================================');
         console.log(`  Host:    http://${localIP}:${port}/host`);
         console.log(`  Players: http://${localIP}:${port}/play`);
@@ -306,6 +306,7 @@ function startDuelQuestion(room, roomCode, io) {
         opponentPlayerId: room.duelOpponentId,
         playerIds: participants,
         timerEndAt: room.timerEndAt,
+        serverNow: Date.now(),
     });
     io.to(roomCode).emit('game:stateSync', sanitizeState(room));
 
@@ -552,10 +553,16 @@ function resolveRankingChallenge(room, roomCode, io, data, source = 'host_submit
         };
     }
 
-    const chances = correctCount >= 4 ? room.maxChances : Math.max(1, room.maxChances - 1);
+    const normalizedCorrectCount = Math.max(0, Math.min(4, Number(correctCount) || 0));
+    let chances = 0;
+    if (normalizedCorrectCount >= 4) chances = 3;
+    else if (normalizedCorrectCount >= 2) chances = 2;
+    else if (normalizedCorrectCount >= 1) chances = 1;
+    chances = Math.min(Number(room.maxChances || 3), chances);
 
     room.chances = chances;
-    room.phase = 'card_open';
+    room.pendingKeywordCardId = null;
+    room.phase = chances > 0 ? 'card_open' : 'trivia_all';
     room.currentRanking = null;
 
     io.to(roomCode).emit('ranking:result', {
@@ -566,10 +573,14 @@ function resolveRankingChallenge(room, roomCode, io, data, source = 'host_submit
     });
 
     setTimeout(() => {
+        if (chances <= 0) {
+            backToTrivia(room, roomCode, io);
+            return;
+        }
         io.to(roomCode).emit('game:phaseChange', { phase: 'card_open' });
         io.to(roomCode).emit('card:gridState', { grid: getPublicGrid(room.cardGrid) });
         io.to(roomCode).emit('game:stateSync', sanitizeState(room));
-    }, applyGameSpeed(2000));
+    }, applyGameSpeed(chances <= 0 ? 600 : 2000));
 
     return { success: true, correctCount, chances };
 }
@@ -592,7 +603,7 @@ function startRankingChallenge(room, roomCode, io) {
         rankingPayload.statements = room.currentRanking.statements.map(s => ({ text: s.text }));
     } else if (room.currentRanking.type === 'estimation') {
         // Don't send the answer to the client!
-        rankingPayload.hint = `A resposta ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© um nÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âºmero`;
+        rankingPayload.hint = 'A resposta e um numero';
     }
 
     io.to(roomCode).emit('game:phaseChange', { phase: 'ranking_challenge' });
@@ -623,6 +634,7 @@ function startTrivia(room, roomCode, io) {
         question: { ...q, correctIndex: -1 },
         timerEndAt: room.timerEndAt,
         eligiblePlayerIds: eligiblePlayers,
+        serverNow: Date.now(),
     });
     scheduleBotTriviaAnswers(room, roomCode, io, q);
 
@@ -715,6 +727,7 @@ function backToTrivia(room, roomCode, io) {
     clearRankingTimer(room);
     resetDuelState(room);
     room.chances = 0;
+    room.pendingKeywordCardId = null;
     room.phase = 'trivia_all';
     room.round++;
 
@@ -767,6 +780,7 @@ function openBox(room, roomCode, io) {
     room.selectedBoxId = null;
     room.cardGrid = [];
     room.lockedKeys = 0;
+    room.pendingKeywordCardId = null;
     room.timerEndAt = null;
 
     io.to(roomCode).emit('game:phaseChange', { phase: 'reveal' });
@@ -1013,6 +1027,7 @@ function createGameRoom(code, hostSocketId, settings = {}) {
         lastRevealedBoxId: null,
         cardGrid: [],
         lockedKeys: 0,
+        pendingKeywordCardId: null,
         chances: 0,
         maxChances: DEFAULT_MAX_CHANCES,
         scoring: {
@@ -1065,14 +1080,28 @@ function sanitizeState(room) {
         delete state.currentQuestion.signature;
     }
     if (state.currentRanking) {
-        state.currentRanking = {
+        const rankingType = state.currentRanking.type || 'order';
+        const sanitizedRanking = {
+            type: rankingType,
             question: state.currentRanking.question,
-            items: state.currentRanking.items,
         };
+
+        if (rankingType === 'order') {
+            sanitizedRanking.items = Array.isArray(state.currentRanking.items) ? state.currentRanking.items : [];
+        } else if (rankingType === 'true_false') {
+            sanitizedRanking.statements = Array.isArray(state.currentRanking.statements)
+                ? state.currentRanking.statements.map((statement) => ({ text: statement.text }))
+                : [];
+        } else if (rankingType === 'estimation') {
+            sanitizedRanking.hint = 'A resposta e um numero';
+        }
+
+        state.currentRanking = sanitizedRanking;
     }
     state.cardGrid = getPublicGrid(room.cardGrid || []);
     state.answeredCount = Object.keys(room._triviaAnswers || {}).length;
     state.eligibleCount = getEligiblePlayerIds(room).length;
+    state.serverNow = Date.now();
     state.metrics = buildPublicMetrics(room);
     return state;
 }

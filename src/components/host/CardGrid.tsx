@@ -3,15 +3,22 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import type { GameState } from '@/shared/types';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 
-type CardGridState = Pick<GameState, 'cardGrid' | 'lockedKeys' | 'chances' | 'triviaWinnerId' | 'players'>;
+type CardGridState = Pick<GameState, 'cardGrid' | 'lockedKeys' | 'chances' | 'triviaWinnerId' | 'players' | 'pendingKeywordCardId'>;
 type GridCard = CardGridState['cardGrid'][number];
 
 interface CardGridProps {
     gameState: CardGridState | null;
     roomCode: string;
     onOpenCard: (cardId: number) => void;
+    onTestKeyword: (cardId: number) => void;
+    onSkipKeywordTest: (cardId: number) => void;
+}
+
+function pseudoRandom(seed: number) {
+    const value = Math.sin(seed) * 10000;
+    return value - Math.floor(value);
 }
 
 // Particle component for key discovery
@@ -20,16 +27,18 @@ function Particles({ color, count = 12 }: { color: string; count?: number }) {
         <div className="absolute inset-0 pointer-events-none overflow-visible z-20">
             {Array.from({ length: count }).map((_, i) => {
                 const angle = (360 / count) * i;
-                const distance = 40 + Math.random() * 30;
+                const distance = 40 + pseudoRandom((i + 1) * 1.37 + count) * 30;
                 const dx = Math.cos((angle * Math.PI) / 180) * distance;
                 const dy = Math.sin((angle * Math.PI) / 180) * distance;
-                const size = 4 + Math.random() * 4;
+                const size = 4 + pseudoRandom((i + 1) * 2.11 + count * 3) * 4;
+                const duration = 0.6 + pseudoRandom((i + 1) * 2.93 + count * 5) * 0.3;
+                const delay = pseudoRandom((i + 1) * 4.21 + count * 7) * 0.1;
                 return (
                     <motion.div
                         key={i}
                         initial={{ x: 0, y: 0, scale: 0, opacity: 1 }}
                         animate={{ x: dx, y: dy, scale: [0, 1.5, 0], opacity: [1, 1, 0] }}
-                        transition={{ duration: 0.6 + Math.random() * 0.3, delay: Math.random() * 0.1 }}
+                        transition={{ duration, delay }}
                         style={{
                             position: 'absolute',
                             left: '50%',
@@ -47,21 +56,28 @@ function Particles({ color, count = 12 }: { color: string; count?: number }) {
     );
 }
 
-export default function CardGrid({ gameState, onOpenCard }: CardGridProps) {
-    const grid = gameState?.cardGrid || [];
+export default function CardGrid({ gameState, onOpenCard, onTestKeyword, onSkipKeywordTest }: CardGridProps) {
+    const grid = useMemo(() => gameState?.cardGrid ?? [], [gameState?.cardGrid]);
     const lockedKeys = gameState?.lockedKeys || 0;
     const chances = gameState?.chances || 0;
+    const pendingKeywordCardId = Number(gameState?.pendingKeywordCardId) || null;
     const winnerName = gameState?.triviaWinnerId
         ? gameState?.players?.[gameState.triviaWinnerId]?.name
         : '';
 
-    const canOpen = chances > 0;
+    const hasPendingKeywordDecision = pendingKeywordCardId !== null;
+    const canOpen = chances > 0 && !hasPendingKeywordDecision;
+    const pendingCard = pendingKeywordCardId
+        ? grid.find((card) => card.id === pendingKeywordCardId) || null
+        : null;
 
     // Track newly revealed cards for particle effects
     const [particleCards, setParticleCards] = useState<Set<number>>(new Set());
     const prevGridRef = useRef<GridCard[]>([]);
+    const clearParticlesTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
+        let frame = 0;
         if (prevGridRef.current.length > 0) {
             const newParticles = new Set<number>();
             grid.forEach(card => {
@@ -71,12 +87,33 @@ export default function CardGrid({ gameState, onOpenCard }: CardGridProps) {
                 }
             });
             if (newParticles.size > 0) {
-                setParticleCards(newParticles);
-                setTimeout(() => setParticleCards(new Set()), 1000);
+                frame = requestAnimationFrame(() => {
+                    setParticleCards(newParticles);
+                });
+                if (clearParticlesTimeoutRef.current) {
+                    clearTimeout(clearParticlesTimeoutRef.current);
+                }
+                clearParticlesTimeoutRef.current = setTimeout(() => {
+                    setParticleCards(new Set());
+                    clearParticlesTimeoutRef.current = null;
+                }, 1000);
             }
         }
         prevGridRef.current = [...grid];
+        return () => {
+            if (frame) {
+                cancelAnimationFrame(frame);
+            }
+        };
     }, [grid]);
+
+    useEffect(() => {
+        return () => {
+            if (clearParticlesTimeoutRef.current) {
+                clearTimeout(clearParticlesTimeoutRef.current);
+            }
+        };
+    }, []);
 
     // Card flip animation variants
     const cardFlipVariants = {
@@ -169,6 +206,7 @@ export default function CardGrid({ gameState, onOpenCard }: CardGridProps) {
                     const isRevealed = card.status === 'revealed';
                     const isLocked = card.status === 'locked';
                     const showParticles = particleCards.has(card.id);
+                    const isPendingChoice = pendingKeywordCardId === card.id && isRevealed && !card.type;
 
                     let bgClass = "bg-surface-dark border-primary/5";
                     let content = null;
@@ -191,6 +229,23 @@ export default function CardGrid({ gameState, onOpenCard }: CardGridProps) {
                             </>
                         );
                     } else if (isRevealed) {
+                        if (isPendingChoice) {
+                            bgClass = "bg-primary/10 border-primary/40 shadow-[0_0_18px_rgba(247,183,49,0.22)]";
+                            content = (
+                                <>
+                                    <span className="material-icons text-4xl text-primary mb-1">help</span>
+                                    <span className="text-xs font-black uppercase tracking-wider text-primary text-center">{card.word}</span>
+                                </>
+                            );
+                        } else if (card.type === null) {
+                            bgClass = "bg-white/5 border-white/15";
+                            content = (
+                                <>
+                                    <span className="material-icons text-4xl text-white/35 mb-1">visibility</span>
+                                    <span className="text-xs font-black uppercase tracking-wider text-white/60 text-center">{card.word}</span>
+                                </>
+                            );
+                        } else {
                         switch (card.type) {
                             case 'distractor':
                                 bgClass = "bg-accent-red/10 border-accent-red/30";
@@ -243,6 +298,7 @@ export default function CardGrid({ gameState, onOpenCard }: CardGridProps) {
                                 break;
                             default:
                                 content = <span className="text-sm">{card.word}</span>;
+                        }
                         }
                     } else {
                         // Hidden — card back
@@ -300,8 +356,36 @@ export default function CardGrid({ gameState, onOpenCard }: CardGridProps) {
                 })}
             </div>
 
+            {hasPendingKeywordDecision && pendingCard && chances > 0 && (
+                <motion.div
+                    initial={{ y: 12, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    className="glass-panel rounded-2xl p-4 border border-primary/20 flex flex-wrap items-center justify-between gap-4"
+                >
+                    <div>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-primary/60 font-black">Palavra Revelada</p>
+                        <p className="text-lg font-black mt-1">{pendingCard.word}</p>
+                        <p className="text-xs text-white/45 mt-1">Testar gasta 1 chance. Pular nao gasta chance.</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => onSkipKeywordTest(pendingCard.id)}
+                            className="btn-secondary px-4 py-2 text-xs h-10"
+                        >
+                            Pular
+                        </button>
+                        <button
+                            onClick={() => onTestKeyword(pendingCard.id)}
+                            className="btn-primary px-4 py-2 text-xs h-10"
+                        >
+                            Testar Palavra
+                        </button>
+                    </div>
+                </motion.div>
+            )}
+
             {/* Empty State */}
-            {!canOpen && (
+            {chances <= 0 && (
                 <motion.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}

@@ -102,13 +102,67 @@ export default function HostLobby({
                     </div>
 
                     <div className="flex flex-wrap items-center justify-end gap-3">
+                        {/* Mode */}
+                        <div className="flex bg-black/30 p-1 rounded-lg border border-primary/10">
+                            {['solo', 'equipes'].map(mode => (
+                                <button
+                                    key={mode}
+                                    onClick={() => onUpdateSettings({ mode })}
+                                    className={cn(
+                                        "px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-all",
+                                        gameState.mode === mode
+                                            ? "bg-primary text-black shadow-sm"
+                                            : "text-white/40 hover:text-white hover:bg-white/5"
+                                    )}
+                                >
+                                    {mode}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Box Count */}
+                        <div className="flex items-center gap-1 bg-black/30 p-1 rounded-lg border border-primary/10 px-2 h-[34px]">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-white/30 mr-1 hidden sm:inline-block">Caixas</span>
+                            <button
+                                onClick={() => onUpdateSettings({ boxCount: Math.max(5, (gameState.boxCount || 13) - 1) })}
+                                className="w-6 h-6 rounded hover:bg-white/10 flex items-center justify-center transition-colors text-white/60 hover:text-white"
+                            >
+                                <span className="material-icons text-[10px]">remove</span>
+                            </button>
+                            <span className="font-mono font-black text-sm w-5 text-center text-primary">{gameState.boxCount || 13}</span>
+                            <button
+                                onClick={() => onUpdateSettings({ boxCount: Math.min(13, (gameState.boxCount || 13) + 1) })}
+                                className="w-6 h-6 rounded hover:bg-white/10 flex items-center justify-center transition-colors text-white/60 hover:text-white"
+                            >
+                                <span className="material-icons text-[10px]">add</span>
+                            </button>
+                        </div>
+
                         <div className="chip-badge">
                             <span className="material-icons text-[14px] text-accent-emerald">groups</span>
                             <span className="font-bold text-white">{connectedCount}/8</span>
                         </div>
-                        <div className="chip-badge">
-                            <span className="material-icons text-[14px] text-primary">smart_toy</span>
-                            <span className="font-bold text-white">{botCount} Bots</span>
+                        {/* Bot Control */}
+                        <div className="flex items-center gap-1 bg-black/30 p-1 rounded-lg border border-primary/10 px-2 h-[34px]">
+                            <span className="material-icons text-[14px] text-primary/60 mr-1">smart_toy</span>
+                            <span className="font-bold text-white text-sm w-4 text-center">{botCount}</span>
+                            <div className="w-px h-3 bg-white/10 mx-1" />
+                            <button
+                                onClick={() => onAddBots(1)}
+                                className="w-6 h-6 rounded hover:bg-white/10 flex items-center justify-center transition-colors text-primary hover:text-white"
+                                title="Adicionar Bot"
+                            >
+                                <span className="material-icons text-[14px]">add</span>
+                            </button>
+                            {botCount > 0 && (
+                                <button
+                                    onClick={onClearBots}
+                                    className="w-6 h-6 rounded hover:bg-red-500/20 flex items-center justify-center transition-colors text-red-400 hover:text-red-300 ml-1"
+                                    title="Remover Todos"
+                                >
+                                    <span className="material-icons text-[14px]">close</span>
+                                </button>
+                            )}
                         </div>
                     </div>
                 </motion.header>
@@ -258,43 +312,8 @@ export default function HostLobby({
                     <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
 
                     <div className="flex flex-wrap items-center gap-6">
-                        {/* Mode */}
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[10px] font-black uppercase tracking-[0.16em] text-white/25">Modo de Jogo</label>
-                            <div className="flex bg-black/30 p-1 rounded-xl border border-primary/5">
-                                {['solo', 'equipes'].map(mode => (
-                                    <button
-                                        key={mode}
-                                        onClick={() => onUpdateSettings({ mode })}
-                                        className={cn(
-                                            "px-5 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all",
-                                            gameState.mode === mode
-                                                ? "bg-primary text-black shadow-lg"
-                                                : "text-white/40 hover:text-white hover:bg-white/5"
-                                        )}
-                                    >
-                                        {mode}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Boxes */}
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[10px] font-black uppercase tracking-[0.16em] text-white/25">Quantidade de Caixas</label>
-                            <div className="flex items-center gap-3 bg-black/30 p-1 rounded-xl border border-primary/5 px-2">
-                                <button onClick={() => onUpdateSettings({ boxCount: Math.max(5, (gameState.boxCount || 13) - 1) })} className="w-8 h-8 rounded-lg hover:bg-primary/10 flex items-center justify-center transition-colors text-primary/60 hover:text-primary">
-                                    <span className="material-icons text-sm">remove</span>
-                                </button>
-                                <span className="font-mono font-black text-lg w-6 text-center text-primary">{gameState.boxCount || 13}</span>
-                                <button onClick={() => onUpdateSettings({ boxCount: Math.min(13, (gameState.boxCount || 13) + 1) })} className="w-8 h-8 rounded-lg hover:bg-primary/10 flex items-center justify-center transition-colors text-primary/60 hover:text-primary">
-                                    <span className="material-icons text-sm">add</span>
-                                </button>
-                            </div>
-                        </div>
-
                         {/* Categories */}
-                        <div className="flex flex-col gap-2 min-w-[280px]">
+                        <div className="flex flex-col gap-2 min-w-[280px] flex-1">
                             <label className="text-[10px] font-black uppercase tracking-[0.16em] text-white/25">Categorias</label>
                             <div className="flex flex-wrap gap-1.5 bg-black/30 p-2 rounded-xl border border-primary/5">
                                 {Object.entries(CATEGORY_LABELS).map(([category, label]) => {
@@ -322,56 +341,72 @@ export default function HostLobby({
                         {/* Scoring */}
                         <div className="flex flex-col gap-2">
                             <label className="text-[10px] font-black uppercase tracking-[0.16em] text-white/25">Pontuação</label>
-                            <div className="flex items-center gap-2 bg-black/30 p-2 rounded-xl border border-primary/5">
-                                <button
-                                    onClick={() => onUpdateSettings({ scoring: { triviaWinPoints: Math.max(5, Number(scoring.triviaWinPoints || 10) - 1), duelWinPoints: Number(scoring.duelWinPoints || 120) } })}
-                                    className="w-7 h-7 rounded-lg hover:bg-primary/10 text-primary/60 hover:text-primary"
-                                >
-                                    -
-                                </button>
-                                <span className="text-[11px] uppercase font-bold text-white/70">Trivia {Number(scoring.triviaWinPoints || 10)}</span>
-                                <button
-                                    onClick={() => onUpdateSettings({ scoring: { triviaWinPoints: Math.min(25, Number(scoring.triviaWinPoints || 10) + 1), duelWinPoints: Number(scoring.duelWinPoints || 120) } })}
-                                    className="w-7 h-7 rounded-lg hover:bg-primary/10 text-primary/60 hover:text-primary"
-                                >
-                                    +
-                                </button>
-                                <span className="w-px h-5 bg-white/10 mx-1" />
-                                <button
-                                    onClick={() => onUpdateSettings({ scoring: { triviaWinPoints: Number(scoring.triviaWinPoints || 10), duelWinPoints: Math.max(60, Number(scoring.duelWinPoints || 120) - 10) } })}
-                                    className="w-7 h-7 rounded-lg hover:bg-primary/10 text-primary/60 hover:text-primary"
-                                >
-                                    -
-                                </button>
-                                <span className="text-[11px] uppercase font-bold text-white/70">Duelo {Number(scoring.duelWinPoints || 120)}</span>
-                                <button
-                                    onClick={() => onUpdateSettings({ scoring: { triviaWinPoints: Number(scoring.triviaWinPoints || 10), duelWinPoints: Math.min(240, Number(scoring.duelWinPoints || 120) + 10) } })}
-                                    className="w-7 h-7 rounded-lg hover:bg-primary/10 text-primary/60 hover:text-primary"
-                                >
-                                    +
-                                </button>
+                            <div className="flex items-center gap-4 bg-black/30 p-2 rounded-xl border border-primary/5">
+                                {/* Trivia Score */}
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => onUpdateSettings({ scoring: { triviaWinPoints: Math.max(5, Number(scoring.triviaWinPoints || 10) - 1), duelWinPoints: Number(scoring.duelWinPoints || 120) } })}
+                                        className="w-7 h-7 rounded-lg hover:bg-primary/10 text-primary/60 hover:text-primary flex items-center justify-center transition-colors"
+                                    >
+                                        <span className="material-icons text-sm">remove</span>
+                                    </button>
+                                    <div className="flex flex-col items-center min-w-[3rem]">
+                                        <span className="text-[10px] uppercase font-black text-white/40 leading-none mb-0.5">Trivia</span>
+                                        <span className="text-xl font-mono font-black text-primary leading-none">{Number(scoring.triviaWinPoints || 10)}</span>
+                                    </div>
+                                    <button
+                                        onClick={() => onUpdateSettings({ scoring: { triviaWinPoints: Math.max(5, Number(scoring.triviaWinPoints || 10) + 1), duelWinPoints: Number(scoring.duelWinPoints || 120) } })}
+                                        className="w-7 h-7 rounded-lg hover:bg-primary/10 text-primary/60 hover:text-primary flex items-center justify-center transition-colors"
+                                    >
+                                        <span className="material-icons text-sm">add</span>
+                                    </button>
+                                </div>
+
+                                <div className="w-px h-8 bg-white/10" />
+
+                                {/* Duel Score */}
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => onUpdateSettings({ scoring: { triviaWinPoints: Number(scoring.triviaWinPoints || 10), duelWinPoints: Math.max(60, Number(scoring.duelWinPoints || 120) - 10) } })}
+                                        className="w-7 h-7 rounded-lg hover:bg-primary/10 text-primary/60 hover:text-primary flex items-center justify-center transition-colors"
+                                    >
+                                        <span className="material-icons text-sm">remove</span>
+                                    </button>
+                                    <div className="flex flex-col items-center min-w-[3rem]">
+                                        <span className="text-[10px] uppercase font-black text-white/40 leading-none mb-0.5">Duelo</span>
+                                        <span className="text-xl font-mono font-black text-primary leading-none">{Number(scoring.duelWinPoints || 120)}</span>
+                                    </div>
+                                    <button
+                                        onClick={() => onUpdateSettings({ scoring: { triviaWinPoints: Number(scoring.triviaWinPoints || 10), duelWinPoints: Math.min(240, Number(scoring.duelWinPoints || 120) + 10) } })}
+                                        className="w-7 h-7 rounded-lg hover:bg-primary/10 text-primary/60 hover:text-primary flex items-center justify-center transition-colors"
+                                    >
+                                        <span className="material-icons text-sm">add</span>
+                                    </button>
+                                </div>
+
+                                <div className="w-px h-8 bg-white/10" />
+
+                                {/* Auto Balance */}
                                 <button
                                     onClick={() => onUpdateSettings({ autoBalanceScoring: !gameState.autoBalanceScoring })}
                                     className={cn(
-                                        "ml-2 px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-all",
+                                        "px-3 py-1.5 rounded-lg flex flex-col items-center gap-0.5 transition-all border",
                                         gameState.autoBalanceScoring
-                                            ? "bg-accent-emerald/20 text-accent-emerald border border-accent-emerald/30"
-                                            : "bg-white/5 text-white/50 border border-white/10"
+                                            ? "bg-accent-emerald/10 border-accent-emerald/40"
+                                            : "bg-white/5 border-white/5 hover:border-white/10"
                                     )}
                                 >
-                                    Auto Balance {gameState.autoBalanceScoring ? 'On' : 'Off'}
+                                    <span className="text-[9px] font-black uppercase tracking-wider text-white/40">Auto Balance</span>
+                                    <span className={cn(
+                                        "text-xs font-black uppercase tracking-widest",
+                                        gameState.autoBalanceScoring ? "text-accent-emerald" : "text-white/20"
+                                    )}>
+                                        {gameState.autoBalanceScoring ? 'ATIVADO' : 'OFF'}
+                                    </span>
                                 </button>
                             </div>
                         </div>
 
-                        {/* Bots */}
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[10px] font-black uppercase tracking-[0.16em] text-white/25">Simular Jogadores</label>
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => onAddBots(1)} className="btn-secondary py-2 px-4 text-xs h-10">+1 Bot</button>
-                                <button onClick={onClearBots} disabled={botCount === 0} className="btn-danger py-2 px-4 text-xs h-10">Remover</button>
-                            </div>
-                        </div>
                     </div>
 
                     <button

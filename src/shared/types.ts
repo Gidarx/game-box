@@ -138,8 +138,9 @@ export interface GameState {
   attackerTeamId: string | null;
   selectedBoxId: number | null;
   lastRevealedBoxId: number | null;
-  cardGrid: Array<{ id: number; status: 'hidden' | 'revealed' | 'locked'; word: string | null; type: string | null }>;
+  cardGrid: Array<{ id: number; status: 'hidden' | 'revealed' | 'locked'; word: string | null; type: string | null; tested?: boolean }>;
   lockedKeys: number;
+  pendingKeywordCardId: number | null;
   chances: number;
   maxChances: number;
   scoring: ScoringSettings;

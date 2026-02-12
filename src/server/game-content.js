@@ -3,12 +3,36 @@
 const { shuffleArray } = require('./random');
 
 const KEYWORD_BANK = {
-    tech: ['processador', 'tela', 'bateria', 'pixel', 'memoria', 'codigo', 'algoritmo', 'servidor', 'nuvem', 'bluetooth', 'wifi', 'chip', 'app', 'dados', 'cache', 'firmware', 'debug', 'render', 'driver', 'kernel'],
-    viagem: ['passaporte', 'mala', 'embarque', 'aeroporto', 'hotel', 'roteiro', 'destino', 'turismo', 'bilhete', 'voo', 'escala', 'alfandega', 'cambio', 'itinerario', 'cruzeiro', 'mochila', 'check-in', 'resort', 'aventura'],
-    meme: ['viral', 'trend', 'repost', 'emoji', 'sticker', 'filtro', 'hashtag', 'curtida', 'compartilhar', 'story', 'feed', 'reel', 'meme', 'gif', 'troll', 'reaction', 'follow', 'engajar'],
-    experiencia: ['adrenalina', 'aventura', 'imersao', 'emocao', 'surpresa', 'radicais', 'mergulho', 'salto', 'escalar', 'explorar', 'acampar', 'trilha', 'rapel', 'surfar', 'voar', 'correr', 'navegar'],
-    misterio: ['enigma', 'segredo', 'pista', 'codigo', 'chave', 'cifra', 'sombra', 'labirinto', 'detetive', 'misterio', 'oculto', 'escondido', 'revelacao', 'investigacao', 'suspeito'],
-    pegadinha: ['trollagem', 'surpresa', 'armadilha', 'piada', 'susto', 'blefe', 'aposta', 'risco', 'perigo', 'engano', 'falsificacao', 'rasteira', 'sabotagem', 'truque', 'cilada'],
+    tech: [
+        ['CODIGO', 'NA', 'NUVEM'],
+        ['APP', 'NO', 'CELULAR'],
+        ['DADOS', 'DO', 'SERVIDOR'],
+    ],
+    viagem: [
+        ['PASSAGEM', 'DE', 'AVIAO'],
+        ['MALA', 'DE', 'VIAGEM'],
+        ['CHECKIN', 'NO', 'HOTEL'],
+    ],
+    meme: [
+        ['VIDEO', 'VIRA', 'MEME'],
+        ['POST', 'COM', 'TREND'],
+        ['STICKER', 'NO', 'GRUPO'],
+    ],
+    experiencia: [
+        ['SALTO', 'DE', 'PARAQUEDAS'],
+        ['TRILHA', 'NA', 'MONTANHA'],
+        ['MERGULHO', 'NO', 'MAR'],
+    ],
+    misterio: [
+        ['PISTA', 'DO', 'ENIGMA'],
+        ['CHAVE', 'DO', 'COFRE'],
+        ['SEGREDO', 'DO', 'CASO'],
+    ],
+    pegadinha: [
+        ['RISADA', 'DA', 'PEGADINHA'],
+        ['SUSTO', 'NO', 'PALCO'],
+        ['TROLAGEM', 'DO', 'AMIGO'],
+    ],
 };
 
 const DECOY_BANK = [
@@ -20,19 +44,20 @@ const DECOY_BANK = [
     'tornado', 'paraquedas', 'bussola', 'canguru', 'samurai', 'iceberg', 'violeta', 'camaleao',
 ];
 
-// Builds a 12-card grid: 3 keys, 7 distractors, 1 lost_turn, 1 duel.
+// Builds a 12-card grid with 3 thematic keyword cards and special risk cards.
 function generateCardGrid(box) {
     const type = box.type || 'misterio';
-    const keywords = KEYWORD_BANK[type] || KEYWORD_BANK.misterio;
-    const keys = shuffleArray(keywords).slice(0, 3);
+    const phraseBank = KEYWORD_BANK[type] || KEYWORD_BANK.misterio;
+    const selectedPhrase = phraseBank[Math.floor(Math.random() * phraseBank.length)] || phraseBank[0];
+    const keys = (selectedPhrase || ['CHAVE', 'DO', 'PREMIO']).slice(0, 3);
     const availableDecoys = DECOY_BANK.filter((word) => !keys.includes(word));
     const decoys = shuffleArray(availableDecoys).slice(0, 7);
 
     const cards = [
         ...keys.map((word) => ({ word, type: 'key' })),
         ...decoys.map((word) => ({ word, type: 'distractor' })),
-        { word: 'PERDEU A VEZ!', type: 'lost_turn' },
-        { word: 'DUELO!', type: 'duel' },
+        { word: 'PERDEU A VEZ', type: 'lost_turn' },
+        { word: 'DUELO', type: 'duel' },
     ];
 
     return shuffleArray(cards).map((card, index) => ({
@@ -40,6 +65,7 @@ function generateCardGrid(box) {
         word: card.word,
         type: card.type,
         status: 'hidden',
+        tested: false,
     }));
 }
 
@@ -49,7 +75,8 @@ function getPublicGrid(cardGrid) {
         id: card.id,
         status: card.status,
         word: card.status !== 'hidden' ? card.word : null,
-        type: card.status !== 'hidden' ? card.type : null,
+        type: card.status === 'locked' || card.tested ? card.type : null,
+        tested: !!card.tested,
     }));
 }
 

@@ -24,7 +24,7 @@ export default function HostPage() {
     const [rankingData, setRankingData] = useState<any>(null);
     const [rankingResult, setRankingResult] = useState<any>(null);
     const [isMuted, setIsMuted] = useState(false);
-    const initialized = useRef(false);
+    const creatingRoomRef = useRef(false);
     const prevPhaseRef = useRef<string | null>(null);
 
     useEffect(() => {
@@ -37,7 +37,12 @@ export default function HostPage() {
     useEffect(() => {
         const unsubs: (() => void)[] = [];
 
-        unsubs.push(on('game:stateSync', (state: any) => setGameState(state)));
+        unsubs.push(on('game:stateSync', (state: any) => {
+            setGameState(state);
+            if (state?.phase !== 'ranking_challenge') {
+                setRankingData(null);
+            }
+        }));
 
         unsubs.push(on('ranking:show', (data: any) => {
             setRankingData(data);
@@ -75,23 +80,53 @@ export default function HostPage() {
         }));
 
         return () => unsubs.forEach(u => u());
-    }, [on]);
+    }, [on, audio]);
 
     const createRoom = useCallback((settings?: Record<string, unknown>) => {
-        if (initialized.current) return;
-        initialized.current = true;
+        if (roomCode || creatingRoomRef.current) return;
+        creatingRoomRef.current = true;
+
+        let resolved = false;
+        const watchdog = setTimeout(() => {
+            if (!resolved) {
+                creatingRoomRef.current = false;
+            }
+        }, 5000);
 
         emit('room:create', settings || {}, (res: any) => {
-            if (res.success) {
+            resolved = true;
+            clearTimeout(watchdog);
+            creatingRoomRef.current = false;
+
+            if (res?.success) {
                 setRoomCode(res.roomCode);
                 setGameState(res.state);
             }
         });
-    }, [emit]);
+    }, [emit, roomCode]);
 
     useEffect(() => {
         if (isConnected && !roomCode) createRoom();
     }, [isConnected, roomCode, createRoom]);
+
+    useEffect(() => {
+        if (!isConnected || roomCode) return;
+        const retryInterval = setInterval(() => {
+            if (!creatingRoomRef.current) {
+                createRoom();
+            }
+        }, 6000);
+        return () => clearInterval(retryInterval);
+    }, [isConnected, roomCode, createRoom]);
+
+    useEffect(() => {
+        if (!isConnected || !roomCode) return;
+        emit('host:rejoin', { roomCode }, (res: any) => {
+            if (res?.success && res.state) {
+                setGameState(res.state);
+            }
+        });
+    }, [isConnected, roomCode, emit]);
 
     // BGM phase tracking + SFX on phase transitions
     useEffect(() => {
@@ -141,6 +176,16 @@ export default function HostPage() {
     const openCard = useCallback((cardId: number) => {
         if (!roomCode) return;
         emit('card:open', { roomCode, cardId }, () => { });
+    }, [roomCode, emit]);
+
+    const testKeyword = useCallback((cardId: number) => {
+        if (!roomCode) return;
+        emit('card:testKeyword', { roomCode, cardId }, () => { });
+    }, [roomCode, emit]);
+
+    const skipKeywordTest = useCallback((cardId: number) => {
+        if (!roomCode) return;
+        emit('card:skipKeywordTest', { roomCode, cardId }, () => { });
     }, [roomCode, emit]);
 
     const submitRanking = useCallback((order: number[]) => {
@@ -240,6 +285,10 @@ export default function HostPage() {
         );
     }
 
+    const rankingChallengeData = phase === 'ranking_challenge'
+        ? (rankingData || gameState?.currentRanking || null)
+        : null;
+
     return (
         <div className="flex h-screen w-screen p-4 gap-4 overflow-hidden relative">
             {/* Mute Toggle */}
@@ -262,9 +311,9 @@ export default function HostPage() {
                     <Gameboard gameState={gameState} onSelectBox={selectBox} interactive />
                 )}
 
-                {phase === 'ranking_challenge' && rankingData && !rankingResult && (
+                {phase === 'ranking_challenge' && rankingChallengeData && !rankingResult && (
                     <RankingRouter
-                        rankingData={rankingData}
+                        rankingData={rankingChallengeData}
                         onSubmitOrder={submitRanking}
                         onSubmitTrueFalse={submitTrueFalse}
                         onSubmitEstimation={submitEstimation}
@@ -292,7 +341,13 @@ export default function HostPage() {
                 )}
 
                 {phase === 'card_open' && (
-                    <CardGrid gameState={gameState} roomCode={roomCode!} onOpenCard={openCard} />
+                    <CardGrid
+                        gameState={gameState}
+                        roomCode={roomCode!}
+                        onOpenCard={openCard}
+                        onTestKeyword={testKeyword}
+                        onSkipKeywordTest={skipKeywordTest}
+                    />
                 )}
 
                 {phase === 'duel' && (

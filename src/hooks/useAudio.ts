@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 // ===== Web Audio API Synthesized SFX =====
 
@@ -324,14 +324,14 @@ export function useAudio() {
         };
     }, [stopBGM]);
 
-    return {
+    return useMemo(() => ({
         playSFX,
         startBGM,
         stopBGM,
         toggleMute,
         setMuted,
         isMuted,
-    };
+    }), [playSFX, startBGM, stopBGM, toggleMute, setMuted, isMuted]);
 }
 
 export type { BGMPhase };

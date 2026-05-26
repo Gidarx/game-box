@@ -5,6 +5,7 @@ import Image from 'next/image';
 import QRCode from 'qrcode';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import QuestionBankPanel from './QuestionBankPanel';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -16,6 +17,8 @@ interface Props {
     onUpdateSettings: (settings: Record<string, unknown>) => void;
     onAddBots: (count: number) => void;
     onClearBots: () => void;
+    onAssignTeam: (playerId: string, teamId: string) => void;
+    onRenameTeam: (teamId: string, name: string) => void;
 }
 
 export default function HostLobby({
@@ -26,6 +29,8 @@ export default function HostLobby({
     onUpdateSettings,
     onAddBots,
     onClearBots,
+    onAssignTeam,
+    onRenameTeam,
 }: Props) {
     const [qrDataUrl, setQrDataUrl] = useState<string>('');
 
@@ -38,6 +43,7 @@ export default function HostLobby({
         ? gameState.questionCategories
         : ['all'];
     const scoring = gameState.scoring || { triviaWinPoints: 10, duelWinPoints: 120 };
+    const teams = Object.values(gameState.teams || {}) as any[];
 
     const CATEGORY_LABELS: Record<string, string> = {
         all: 'Todas',
@@ -49,6 +55,16 @@ export default function HostLobby({
         tech: 'Tech',
         esportes: 'Esportes',
         entretenimento: 'Entretenimento',
+        internet: 'Internet',
+        memes: 'Memes',
+        familia: 'Família',
+        nostalgia: 'Nostalgia',
+        brasil: 'Brasil',
+        comida: 'Comida',
+        tv: 'TV',
+        games: 'Games',
+        role: 'Rolê',
+        pegadinha: 'Pegadinha',
     };
 
     const toggleCategory = (category: string) => {
@@ -120,6 +136,8 @@ export default function HostLobby({
                             ))}
                         </div>
 
+                        <QuestionBankPanel categoryLabels={CATEGORY_LABELS} />
+
                         {/* Box Count */}
                         <div className="flex items-center gap-1 bg-black/30 p-1 rounded-lg border border-primary/10 px-2 h-[34px]">
                             <span className="text-[10px] font-black uppercase tracking-wider text-white/30 mr-1 hidden sm:inline-block">Caixas</span>
@@ -132,6 +150,23 @@ export default function HostLobby({
                             <span className="font-mono font-black text-sm w-5 text-center text-primary">{gameState.boxCount || 13}</span>
                             <button
                                 onClick={() => onUpdateSettings({ boxCount: Math.min(13, (gameState.boxCount || 13) + 1) })}
+                                className="w-6 h-6 rounded hover:bg-white/10 flex items-center justify-center transition-colors text-white/60 hover:text-white"
+                            >
+                                <span className="material-icons text-[10px]">add</span>
+                            </button>
+                        </div>
+
+                        <div className="flex items-center gap-1 bg-black/30 p-1 rounded-lg border border-primary/10 px-2 h-[34px]">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-white/30 mr-1 hidden sm:inline-block">Rodadas</span>
+                            <button
+                                onClick={() => onUpdateSettings({ maxRounds: Math.max(1, Number(gameState.maxRounds || 30) - 1) })}
+                                className="w-6 h-6 rounded hover:bg-white/10 flex items-center justify-center transition-colors text-white/60 hover:text-white"
+                            >
+                                <span className="material-icons text-[10px]">remove</span>
+                            </button>
+                            <span className="font-mono font-black text-sm w-6 text-center text-primary">{gameState.maxRounds || 30}</span>
+                            <button
+                                onClick={() => onUpdateSettings({ maxRounds: Number(gameState.maxRounds || 30) + 1 })}
                                 className="w-6 h-6 rounded hover:bg-white/10 flex items-center justify-center transition-colors text-white/60 hover:text-white"
                             >
                                 <span className="material-icons text-[10px]">add</span>
@@ -284,6 +319,24 @@ export default function HostLobby({
                                                         {player.isBot && <span className="text-[10px] bg-primary/15 text-primary px-1.5 rounded uppercase font-bold tracking-wider">Bot</span>}
                                                         <span className="text-xs text-white/25 font-medium uppercase tracking-wide">{player.device || 'Unknown'}</span>
                                                     </div>
+                                                    {gameState.mode === 'equipes' && teams.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1 mt-2">
+                                                            {teams.map((team, teamIndex) => (
+                                                                <button
+                                                                    key={team.id}
+                                                                    onClick={() => onAssignTeam(player.id, team.id)}
+                                                                    className={cn(
+                                                                        "px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border transition-colors",
+                                                                        player.teamId === team.id
+                                                                            ? "bg-primary text-black border-primary"
+                                                                            : "bg-white/5 border-white/10 text-white/35 hover:text-white"
+                                                                    )}
+                                                                >
+                                                                    {team.name || `Equipe ${teamIndex + 1}`}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                             <span className="text-white/10 font-mono font-black text-2xl group-hover:text-primary/20 transition-colors">#{i + 1}</span>
@@ -301,6 +354,22 @@ export default function HostLobby({
                         </div>
                     </motion.section>
                 </main>
+
+                {gameState.mode === 'equipes' && teams.length > 0 && (
+                    <div className="glass-panel rounded-2xl p-4 flex flex-wrap items-center gap-3">
+                        <span className="text-[10px] uppercase tracking-[0.18em] text-primary/40 font-black">Times</span>
+                        {teams.map((team) => (
+                            <input
+                                key={team.id}
+                                value={team.name}
+                                onChange={(event) => onRenameTeam(team.id, event.target.value)}
+                                maxLength={24}
+                                className="bg-black/30 border border-primary/10 rounded-lg px-3 py-2 text-sm font-bold text-white focus:border-primary/40 focus:outline-none"
+                                style={team.color ? { borderColor: `${team.color}50` } : undefined}
+                            />
+                        ))}
+                    </div>
+                )}
 
                 {/* Footer Controls */}
                 <motion.footer
@@ -403,6 +472,30 @@ export default function HostLobby({
                                     )}>
                                         {gameState.autoBalanceScoring ? 'ATIVADO' : 'OFF'}
                                     </span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[10px] font-black uppercase tracking-[0.16em] text-white/25">Wildcard</label>
+                            <div className="flex items-center gap-2 bg-black/30 p-2 rounded-xl border border-primary/5">
+                                <button
+                                    onClick={() => onUpdateSettings({ wildcardFrequency: Math.max(0, Number(gameState.wildcardFrequency ?? 2) - 1) })}
+                                    className="w-7 h-7 rounded-lg hover:bg-primary/10 text-primary/60 hover:text-primary flex items-center justify-center transition-colors"
+                                >
+                                    <span className="material-icons text-sm">remove</span>
+                                </button>
+                                <div className="flex flex-col items-center min-w-[4rem]">
+                                    <span className="text-[10px] uppercase font-black text-white/40 leading-none mb-0.5">A cada</span>
+                                    <span className="text-xl font-mono font-black text-primary leading-none">
+                                        {Number(gameState.wildcardFrequency ?? 2) || 'OFF'}
+                                    </span>
+                                </div>
+                                <button
+                                    onClick={() => onUpdateSettings({ wildcardFrequency: Math.min(10, Number(gameState.wildcardFrequency ?? 2) + 1) })}
+                                    className="w-7 h-7 rounded-lg hover:bg-primary/10 text-primary/60 hover:text-primary flex items-center justify-center transition-colors"
+                                >
+                                    <span className="material-icons text-sm">add</span>
                                 </button>
                             </div>
                         </div>

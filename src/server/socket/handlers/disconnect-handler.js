@@ -8,12 +8,11 @@ function onDisconnect(context) {
     const {
         getDuelParticipantIds,
         getEligiblePlayerIds,
-        pickRandomDuelOpponent,
+        backToTrivia,
         resolveDuelRound,
+        resetDuelState,
         resolveTriviaRound,
         sanitizeState,
-        scheduleBotTimer,
-        selectDuelOpponent,
     } = operations;
 
     console.log(`[Socket] Desconectado: ${socket.id}`);
@@ -46,16 +45,19 @@ function onDisconnect(context) {
         }
     } else if (room.phase === 'duel') {
         if (room.triviaWinnerId === player.id && !room.duelOpponentId) {
-            const fallbackOpponentId = pickRandomDuelOpponent(room, player.id);
-            if (fallbackOpponentId) {
-                scheduleBotTimer(room, () => {
-                    if (room.phase !== 'duel' || room.duelOpponentId) return;
-                    selectDuelOpponent(room, mapping.roomCode, io, player.id, fallbackOpponentId, {
-                        source: 'disconnect',
-                        allowSameTeam: true,
-                    });
-                }, 600);
-            }
+            setTimeout(() => {
+                if (room.phase !== 'duel' || room.duelOpponentId) return;
+                if (room.players[player.id]?.isConnected) return;
+
+                resetDuelState(room);
+                if (room.chances > 0) {
+                    room.phase = 'card_open';
+                    io.to(mapping.roomCode).emit('game:phaseChange', { phase: 'card_open' });
+                    io.to(mapping.roomCode).emit('game:stateSync', sanitizeState(room));
+                } else {
+                    backToTrivia(room, mapping.roomCode, io);
+                }
+            }, 1500);
         }
 
         const connectedParticipants = getDuelParticipantIds(room)

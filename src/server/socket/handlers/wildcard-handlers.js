@@ -1,6 +1,7 @@
 function registerWildcardHandlers(context) {
     const { socket } = context;
     socket.on('wildcard:apply', (data) => onWildcardApply(context, data));
+    socket.on('wildcard:playerApply', (data, callback) => onWildcardPlayerApply(context, data, callback));
     socket.on('wildcard:skip', (data) => onWildcardSkip(context, data));
 }
 
@@ -17,13 +18,34 @@ function onWildcardApply(context, data) {
     const team = room.teams[targetTeamId];
     if (!team) return;
 
-    const card = room.currentWildcard;
-    const applied = applyWildcardEffect(room, targetTeamId, card);
+    applyAndFinishWildcard({ io, room, roomCode, targetTeamId, goToNextRound, sanitizeState });
+}
 
-    room.currentWildcard = null;
-    io.to(roomCode).emit('wildcard:effect', { targetTeamId, type: card.type, applied });
-    goToNextRound(room, roomCode, io);
-    io.to(roomCode).emit('game:stateSync', sanitizeState(room));
+function onWildcardPlayerApply(context, data, callback) {
+    const { io, rooms, guards, operations } = context;
+    const { ensurePlayerSocketBinding, normalizeCode } = guards;
+    const { goToNextRound, sanitizeState } = operations;
+
+    const roomCode = normalizeCode(data?.roomCode);
+    const targetTeamId = data?.targetTeamId;
+    const playerId = data?.playerId;
+    const room = rooms.get(roomCode);
+    if (!room || room.phase !== 'wildcard' || !room.currentWildcard) {
+        return callback?.({ success: false, error: 'Wildcard nao esta ativo' });
+    }
+    if (!ensurePlayerSocketBinding(room, roomCode, playerId)) {
+        return callback?.({ success: false, error: 'Jogador invalido' });
+    }
+    const playerTeamId = room.players[playerId]?.teamId;
+    if (!playerTeamId || playerTeamId !== room.attackerTeamId) {
+        return callback?.({ success: false, error: 'Apenas o time atacante pode aplicar wildcard' });
+    }
+    if (!room.teams[targetTeamId]) {
+        return callback?.({ success: false, error: 'Time alvo invalido' });
+    }
+
+    const result = applyAndFinishWildcard({ io, room, roomCode, targetTeamId, goToNextRound, sanitizeState });
+    callback?.({ success: true, ...result });
 }
 
 function onWildcardSkip(context, data) {
@@ -53,6 +75,17 @@ function applyWildcardEffect(room, targetTeamId, card) {
         default:
             return false;
     }
+}
+
+function applyAndFinishWildcard({ io, room, roomCode, targetTeamId, goToNextRound, sanitizeState }) {
+    const card = room.currentWildcard;
+    const applied = applyWildcardEffect(room, targetTeamId, card);
+
+    room.currentWildcard = null;
+    io.to(roomCode).emit('wildcard:effect', { targetTeamId, type: card.type, applied });
+    goToNextRound(room, roomCode, io);
+    io.to(roomCode).emit('game:stateSync', sanitizeState(room));
+    return { targetTeamId, type: card.type, applied };
 }
 
 function applyFreezeEffect(room, targetTeamId) {

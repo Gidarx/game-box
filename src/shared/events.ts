@@ -33,6 +33,8 @@ export const EVENTS = {
   CARD_OPEN: 'card:open',
   CARD_OPENED: 'card:opened',
   CARD_GRID_STATE: 'card:gridState',
+  CARD_SOLVE_PHRASE: 'card:solvePhrase',
+  CARD_PHRASE_SOLVED: 'card:phraseSolved',
 
   // Duel
   DUEL_START: 'duel:start',
@@ -43,10 +45,15 @@ export const EVENTS = {
   // Wildcard
   WILDCARD_DRAW: 'wildcard:draw',
   WILDCARD_APPLY: 'wildcard:apply',
+  WILDCARD_PLAYER_APPLY: 'wildcard:playerApply',
   WILDCARD_EFFECT: 'wildcard:effect',
   WILDCARD_SKIP: 'wildcard:skip',
 
   // Connection
   CONNECT: 'connect',
   DISCONNECT: 'disconnect',
+
+  // Teams
+  TEAM_ASSIGN: 'team:assign',
+  TEAM_RENAME: 'team:rename',
 } as const;

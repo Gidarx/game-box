@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import type { GameState } from '@/shared/types';
 import { useState, useEffect, useMemo, useRef } from 'react';
 
-type CardGridState = Pick<GameState, 'cardGrid' | 'lockedKeys' | 'chances' | 'triviaWinnerId' | 'players' | 'pendingKeywordCardId'>;
+type CardGridState = Pick<GameState, 'cardGrid' | 'lockedKeys' | 'chances' | 'triviaWinnerId' | 'players' | 'pendingKeywordCardId' | 'unlockPhraseProgress' | 'solveAttempts'>;
 type GridCard = CardGridState['cardGrid'][number];
 
 interface CardGridProps {
@@ -61,6 +61,8 @@ export default function CardGrid({ gameState, onOpenCard, onTestKeyword, onSkipK
     const lockedKeys = gameState?.lockedKeys || 0;
     const chances = gameState?.chances || 0;
     const pendingKeywordCardId = Number(gameState?.pendingKeywordCardId) || null;
+    const phraseProgress = Array.isArray(gameState?.unlockPhraseProgress) ? gameState.unlockPhraseProgress : [];
+    const solveAttempts = Number(gameState?.solveAttempts || 0);
     const winnerName = gameState?.triviaWinnerId
         ? gameState?.players?.[gameState.triviaWinnerId]?.name
         : '';
@@ -178,6 +180,31 @@ export default function CardGrid({ gameState, onOpenCard, onTestKeyword, onSkipK
                 </div>
 
                 <div className="flex items-center gap-3">
+                    {phraseProgress.length > 0 && (
+                        <div className="hidden xl:flex items-center gap-2 px-4 py-2 rounded-xl bg-black/30 border border-primary/10">
+                            <span className="material-icons text-primary/50 text-lg">password</span>
+                            <div className="flex gap-1">
+                                {phraseProgress.map((word, index) => (
+                                    <span
+                                        key={index}
+                                        className={cn(
+                                            "min-w-14 px-2 py-1 rounded-lg text-center text-xs font-black uppercase tracking-wider border",
+                                            word
+                                                ? "bg-accent-emerald/10 border-accent-emerald/30 text-accent-emerald"
+                                                : "bg-white/5 border-white/10 text-white/20"
+                                        )}
+                                    >
+                                        {word || '???'}
+                                    </span>
+                                ))}
+                            </div>
+                            {solveAttempts > 0 && (
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-white/30">
+                                    {solveAttempts} tentativa{solveAttempts !== 1 ? 's' : ''}
+                                </span>
+                            )}
+                        </div>
+                    )}
                     <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-bold">Chances</p>
                     <div className="flex gap-1.5">
                         {[0, 1, 2].map(i => (
@@ -365,7 +392,7 @@ export default function CardGrid({ gameState, onOpenCard, onTestKeyword, onSkipK
                     <div>
                         <p className="text-[10px] uppercase tracking-[0.2em] text-primary/60 font-black">Palavra Revelada</p>
                         <p className="text-lg font-black mt-1">{pendingCard.word}</p>
-                        <p className="text-xs text-white/45 mt-1">Testar gasta 1 chance. Pular nao gasta chance.</p>
+                        <p className="text-xs text-white/45 mt-1">Chave nao gasta chance. Distrator gasta 1 chance.</p>
                     </div>
                     <div className="flex items-center gap-2">
                         <button

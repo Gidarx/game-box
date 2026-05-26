@@ -5,6 +5,7 @@ function registerBoardHandlers(context) {
     socket.on('card:open', (data, callback) => onCardOpen(context, data, callback));
     socket.on('card:testKeyword', (data, callback) => onCardTestKeyword(context, data, callback));
     socket.on('card:skipKeywordTest', (data, callback) => onCardSkipKeywordTest(context, data, callback));
+    socket.on('card:solvePhrase', (data, callback) => onCardSolvePhrase(context, data, callback));
 }
 
 function onBoxSelect(context, data, callback) {
@@ -22,12 +23,16 @@ function onBoxSelect(context, data, callback) {
 
     room.selectedBoxId = data.boxId;
     room.lastRevealedBoxId = null;
-    room.cardGrid = generateCardGrid(box);
+    const generated = generateCardGrid(box);
+    room.cardGrid = generated.grid;
+    room.unlockPhrase = generated.phrase;
+    room.solveAttempts = 0;
+    room._cardSolveBonus = 0;
     room.lockedKeys = 0;
     room.pendingKeywordCardId = null;
     room.attackerTeamId = room.triviaWinnerId ? room.players[room.triviaWinnerId]?.teamId || null : null;
 
-    io.to(roomCode).emit('box:selected', { boxId: box.id, box });
+    io.to(roomCode).emit('box:selected', { boxId: box.id, box: { id: box.id, isOpen: false } });
     startRankingChallenge(room, roomCode, io);
     callback?.({ success: true });
 }
@@ -110,7 +115,6 @@ function onCardTestKeyword(context, data, callback) {
     card.tested = true;
 
     if (card.type === 'key') {
-        room.chances = Math.max(0, Number(room.chances || 0) - 1);
         recordCardTelemetry(room, card, 0);
         room.lockedKeys++;
         card.status = 'locked';
@@ -161,8 +165,9 @@ function onCardTestKeyword(context, data, callback) {
 }
 
 function onCardSkipKeywordTest(context, data, callback) {
-    const { rooms, guards } = context;
+    const { io, rooms, guards, operations } = context;
     const { isHost, normalizeCode } = guards;
+    const { applyGameSpeed, backToTrivia } = operations;
 
     const roomCode = normalizeCode(data?.roomCode);
     const room = rooms.get(roomCode);
@@ -176,7 +181,93 @@ function onCardSkipKeywordTest(context, data, callback) {
 
     room.pendingKeywordCardId = null;
     emitBoardState(context, room, roomCode);
+    const hasHiddenCards = room.cardGrid.some((card) => card.status === 'hidden');
+    if (!hasHiddenCards && room.lockedKeys < 3) {
+        setTimeout(() => backToTrivia(room, roomCode, io), applyGameSpeed(1200));
+    }
     callback?.({ success: true, skipped: true, chances: room.chances });
+}
+
+function normalizePhrase(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9]+/g, ' ')
+        .trim()
+        .toUpperCase();
+}
+
+function onCardSolvePhrase(context, data, callback) {
+    const { io, rooms, guards, constants, operations } = context;
+    const { ensurePlayerSocketBinding, normalizeCode } = guards;
+    const { applyGameSpeed, backToTrivia, openBox, recordCardTelemetry, sanitizeState } = operations;
+    const { CARD_SOLVE_BONUS_PER_CHANCE } = constants;
+
+    const roomCode = normalizeCode(data?.roomCode);
+    const playerId = data?.playerId;
+    const room = rooms.get(roomCode);
+    if (!room || room.phase !== 'card_open') {
+        return callback?.({ success: false, error: 'Cartas nao estao ativas' });
+    }
+    if (!ensurePlayerSocketBinding(room, roomCode, playerId)) {
+        return callback?.({ success: false, error: 'Jogador invalido' });
+    }
+    const player = room.players[playerId];
+    if (!player?.teamId || player.teamId !== room.attackerTeamId) {
+        return callback?.({ success: false, error: 'Apenas o time atacante pode resolver' });
+    }
+    if (room.pendingKeywordCardId) {
+        return callback?.({ success: false, error: 'Finalize a carta revelada antes de resolver a frase' });
+    }
+    if (room.chances <= 0) {
+        return callback?.({ success: false, error: 'Sem chances para resolver' });
+    }
+
+    const expectedPhrase = normalizePhrase((room.unlockPhrase || []).join(' '));
+    const submittedPhrase = normalizePhrase(data?.answer);
+    if (!expectedPhrase || !submittedPhrase) {
+        return callback?.({ success: false, error: 'Frase invalida' });
+    }
+
+    room.solveAttempts = Number(room.solveAttempts || 0) + 1;
+    const correct = submittedPhrase === expectedPhrase;
+
+    if (correct) {
+        for (const card of room.cardGrid || []) {
+            if (card.type === 'key') {
+                card.status = 'locked';
+                card.tested = true;
+                recordCardTelemetry(room, card, 0);
+            }
+        }
+        room.lockedKeys = 3;
+        room._cardSolveBonus = Math.max(0, Number(room.chances || 0)) * Number(CARD_SOLVE_BONUS_PER_CHANCE || 0);
+        io.to(roomCode).emit('card:phraseSolved', {
+            playerId,
+            teamId: player.teamId,
+            correct: true,
+            phrase: room.unlockPhrase || [],
+            bonus: room._cardSolveBonus,
+            chances: room.chances,
+        });
+        io.to(roomCode).emit('game:stateSync', sanitizeState(room));
+        setTimeout(() => openBox(room, roomCode, io), applyGameSpeed(1200));
+        return callback?.({ success: true, correct: true, bonus: room._cardSolveBonus, chances: room.chances });
+    }
+
+    room.chances = Math.max(0, Number(room.chances || 0) - 1);
+    io.to(roomCode).emit('card:phraseSolved', {
+        playerId,
+        teamId: player.teamId,
+        correct: false,
+        bonus: 0,
+        chances: room.chances,
+    });
+    io.to(roomCode).emit('game:stateSync', sanitizeState(room));
+    if (room.chances <= 0) {
+        setTimeout(() => backToTrivia(room, roomCode, io), applyGameSpeed(1200));
+    }
+    return callback?.({ success: true, correct: false, bonus: 0, chances: room.chances });
 }
 
 function openLostTurnCardTest(context, room, roomCode, card) {

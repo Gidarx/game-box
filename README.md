@@ -74,6 +74,8 @@ Terminar com a maior pontuacao do time.
 - Inicio exige no minimo 3 jogadores conectados.
 - Host pode alterar o modo (`solo` ou `equipes`).
 - Host pode alterar a quantidade de caixas (5 a 13).
+- Host pode alterar rodadas maximas, frequencia de wildcard e pontuacao.
+- Em `equipes`, o host pode renomear times e mover jogadores manualmente.
 - Host pode adicionar bots de teste no lobby (`+1` ou `+3`) e limpar bots.
 - Limite total de jogadores conectados por sala: `8` (humanos + bots).
 
@@ -111,13 +113,16 @@ Cada caixa gera um grid de 12 cartas:
 Regras:
 
 - Ao travar 3 keys, a caixa abre.
+- O time atacante ve a frase incompleta no celular e pode tentar resolver a frase completa.
+- Acertar a frase abre a caixa e concede bonus por chances restantes.
+- Errar a frase gasta 1 chance.
 - Se as chances acabarem antes de 3 keys, volta para trivia.
 - A caixa ativa continua em disputa ate abrir.
 
 ### Duelo (`duel`)
 
 - So o duelista da rodada pode responder.
-- Acerto concede `+200` para o time.
+- Acerto concede a pontuacao configurada para duelo (padrao: `+120`) para o time.
 - Depois volta para `card_open` se ainda houver chances, senao retorna para `trivia_all`.
 
 ### Revelacao (`reveal`)
@@ -142,9 +147,11 @@ Cartas implementadas:
 
 Regras internas importantes:
 
+- O time atacante pode aplicar o wildcard pelo celular; o host tambem pode aplicar ou pular no telao.
 - `FREEZE` nao pode repetir no mesmo time em duas ativacoes seguidas.
 - `STEAL` so pode ser usado 1 vez por time atacante na partida.
 - Itens com `shielded=true` nao podem ser roubados/trocados.
+- A frequencia de wildcard e configuravel no lobby; `0` desativa.
 
 ### Fim de jogo (`game_over`)
 
@@ -160,9 +167,10 @@ A partida termina quando:
 Fontes de pontos:
 
 - Trivia vencedora da rodada: `+10`
-- Duelo acertado: `+200`
+- Duelo acertado: pontuacao configurada para duelo (padrao: `+120`)
 - Premio da caixa: valor da caixa
 - Caixa final aplica multiplicador (`multiplier`) quando definido
+- Bonus de resolucao de frase: `+25` por chance restante
 
 Penalidades:
 
@@ -211,8 +219,9 @@ Transicoes principais:
 
 ### Equipes
 
-- Times sao montados automaticamente.
-- Distribuicao balanceada entre `Equipe A` e `Equipe B`.
+- Times comecam balanceados automaticamente.
+- O host pode mover jogadores entre times no lobby.
+- O host pode renomear os times antes de iniciar.
 
 ---
 
@@ -273,6 +282,8 @@ pnpm start
 - `pnpm build` => build de producao Next
 - `pnpm start` => inicia servidor em producao
 - `pnpm lint` => analise estatica com ESLint
+- `pnpm content:validate` => valida o arquivo `content/questions.sample.pt-BR.json`
+- `pnpm content:seed` => envia perguntas para o Firestore configurado
 
 ---
 
@@ -290,8 +301,102 @@ Pontos principais:
 - Estado da sala mantido em memoria (`Map`) no servidor.
 - Sincronizacao por evento `game:stateSync`.
 - Atualizacoes de fase por `game:phaseChange`.
-- Questoes via API externa Tryvia, com fallback local.
+- Questoes via Firebase Firestore quando configurado; se falhar, usa Tryvia e fallback local.
 - Sanitizacao no estado evita enviar respostas corretas em aberto.
+
+---
+
+## Firebase / Conteudo
+
+O Firebase e opcional e deve ser usado como banco de conteudo. O motor da partida continua no servidor Socket.IO.
+
+Colecao padrao:
+
+```text
+questions
+```
+
+Formato de pergunta:
+
+```json
+{
+  "id": "familia_001",
+  "text": "Qual dessas mensagens tem mais energia de grupo da familia no WhatsApp?",
+  "options": [
+    "Bom dia com flores e glitter",
+    "Segue o relatorio em anexo",
+    "Reuniao as 14h",
+    "Deploy concluido"
+  ],
+  "correctIndex": 0,
+  "category": "familia",
+  "difficulty": "easy",
+  "timeLimit": 12,
+  "status": "active",
+  "source": "seed",
+  "locale": "pt-BR",
+  "style": "fun",
+  "questionType": "vibe_choice"
+}
+```
+
+Categorias aceitas:
+
+```text
+geral, ciencia, historia, geografia, arte, musica, tech, esportes, entretenimento,
+internet, memes, familia, nostalgia, brasil, comida, tv, games, role, pegadinha
+```
+
+Configuracao local:
+
+1. Crie um projeto Firebase e ative o Firestore.
+2. Gere uma service account no Firebase Console.
+3. Configure `GOOGLE_APPLICATION_CREDENTIALS` apontando para o JSON da service account.
+4. Copie `.env.example` para `.env.local` e defina `GAMEBOX_FIREBASE_ENABLED=1`.
+
+Validar conteudo:
+
+```bash
+pnpm content:validate
+```
+
+Enviar exemplo para o Firestore:
+
+```bash
+pnpm content:seed
+```
+
+O jogo so carrega documentos com `status: "active"` e `locale: "pt-BR"`.
+
+### Geracao com IA
+
+No lobby do host, use o botao **Banco IA** para abrir o painel de conteudo.
+
+O painel permite:
+
+- listar perguntas do Firestore ou a amostra local;
+- gerar perguntas com IA por categoria;
+- validar formato antes de salvar;
+- descartar perguntas parecidas com perguntas ja existentes;
+- ver quais perguntas foram aceitas ou descartadas;
+- ativar, devolver para rascunho ou rejeitar perguntas.
+
+Variaveis necessarias:
+
+```bash
+OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-5-mini
+QUESTION_SIMILARITY_THRESHOLD=0.74
+```
+
+Fluxo recomendado:
+
+1. Gere perguntas no painel **Banco IA**.
+2. O sistema salva perguntas aceitas como `draft` no Firestore.
+3. Revise as perguntas visualmente no proprio painel.
+4. Clique em **Ativar** para liberar a pergunta no jogo.
+
+Perguntas descartadas por similaridade mostram a pergunta parecida e o percentual aproximado de semelhanca.
 
 ---
 
@@ -329,6 +434,8 @@ Pontos principais:
 - `game:stateSync`
 - `game:phaseChange`
 - `host:forceNext`
+- `team:assign`
+- `team:rename`
 
 ## Trivia
 
@@ -349,6 +456,9 @@ Pontos principais:
 - `card:open`
 - `card:opened`
 - `card:gridState`
+- `card:testKeyword`
+- `card:solvePhrase`
+- `card:phraseSolved`
 
 ## Duelo
 
@@ -360,6 +470,7 @@ Pontos principais:
 
 - `wildcard:draw`
 - `wildcard:apply`
+- `wildcard:playerApply`
 - `wildcard:effect`
 - `wildcard:skip`
 
@@ -372,10 +483,8 @@ Configuracoes suportadas no servidor:
 - `mode` (`solo` | `equipes`)
 - `boxCount` (5..13)
 - `maxRounds` (padrao 30)
-
-Obs:
-
-- Nem todas as configuracoes avancadas tem controle visual exposto no lobby por padrao.
+- `duelPoints`
+- `wildcardFrequency` (`0` desativa)
 
 ---
 
@@ -411,9 +520,9 @@ Obs:
 ## Limitacoes atuais
 
 - Estado em memoria (sem persistencia em banco)
+- Historico local das ultimas partidas e salvo em `.gamebox-history.json`, mas nao ha banco externo
 - Sem autentificacao de usuario
-- Sem historico de partidas
-- Modo `equipes` atual e automatico (sem draft manual por jogador)
+- Reconexao depende do mesmo navegador/dispositivo manter o armazenamento local
 
 ---
 

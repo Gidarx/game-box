@@ -4,15 +4,19 @@ const { parse } = require('url');
 const next = require('next');
 const { Server } = require('socket.io');
 const os = require('os');
+const fs = require('fs');
+const path = require('path');
 const {
     BOT_DUEL_ACCURACY,
     BOT_TRIVIA_ACCURACY,
+    CARD_SOLVE_BONUS_PER_CHANCE,
     DEFAULT_DUEL_SELECT_TIMEOUT_MS,
     DEFAULT_DUEL_WIN_POINTS,
     DEFAULT_MAX_CHANCES,
     DEFAULT_MAX_ROUNDS,
     DEFAULT_RANKING_TIMEOUT_MS,
     DEFAULT_TRIVIA_WIN_POINTS,
+    DEFAULT_WILDCARD_FREQUENCY,
     FAST_MODE,
     MAX_PLAYERS_PER_ROOM,
     MIN_PLAYERS_TO_START,
@@ -31,6 +35,7 @@ const { getRandomRanking, scoreRanking } = require('./src/server/ranking');
 const { generateCardGrid, getDefaultBoxes, getPublicGrid } = require('./src/server/game-content');
 const {
     buildQuestionCatalog,
+    fetchFirestoreQuestions,
     fetchTryviaQuestions,
     getFallbackQuestions,
     getNextQuestion,
@@ -98,8 +103,10 @@ app.prepare().then(() => {
             rooms,
             socketToRoom,
             constants: {
+                CARD_SOLVE_BONUS_PER_CHANCE,
                 DEFAULT_DUEL_SELECT_TIMEOUT_MS,
                 DEFAULT_MAX_ROUNDS,
+                DEFAULT_WILDCARD_FREQUENCY,
                 MAX_PLAYERS_PER_ROOM,
                 MIN_PLAYERS_TO_START,
                 QUESTION_FETCH_AMOUNT,
@@ -113,6 +120,7 @@ app.prepare().then(() => {
                 applyGameSpeed,
                 assignPlayerToBalancedTeam,
                 assignPlayerToSoloTeam,
+                assignPlayerToTeam,
                 backToTrivia,
                 buildQuestionCatalog,
                 clearBotTimers,
@@ -121,6 +129,7 @@ app.prepare().then(() => {
                 createBotPlayer,
                 createEmptyMetrics,
                 createGameRoom,
+                fetchFirestoreQuestions,
                 fetchTryviaQuestions,
                 generateCardGrid,
                 generateId,
@@ -265,7 +274,7 @@ function selectDuelOpponent(room, roomCode, io, chooserId, opponentId, options =
 
     const chooser = room.players[chooserId];
     const opponent = room.players[opponentId];
-    if (!chooser || !opponent || !opponent.isConnected) {
+    if (!chooser || !chooser.isConnected || !opponent || !opponent.isConnected) {
         return { success: false, error: 'Oponente indisponivel' };
     }
 
@@ -732,9 +741,7 @@ function backToTrivia(room, roomCode, io) {
     room.round++;
 
     if (room.round > room.maxRounds) {
-        room.phase = 'game_over';
-        io.to(roomCode).emit('game:phaseChange', { phase: 'game_over' });
-        io.to(roomCode).emit('game:stateSync', sanitizeState(room));
+        finishGame(room, roomCode, io);
         return;
     }
 
@@ -766,8 +773,10 @@ function openBox(room, roomCode, io) {
             }
         } else {
             const pts = box.points * (box.multiplier || 1);
-            team.score += pts;
+            const solveBonus = Math.max(0, Number(room._cardSolveBonus || 0));
+            team.score += pts + solveBonus;
             box.points = pts;
+            box.solveBonus = solveBonus;
         }
         team.inventory.push({
             boxId: box.id, prizeLabel: box.prizeLabel,
@@ -779,8 +788,11 @@ function openBox(room, roomCode, io) {
     room.lastRevealedBoxId = box.id;
     room.selectedBoxId = null;
     room.cardGrid = [];
+    room.unlockPhrase = [];
+    room.solveAttempts = 0;
     room.lockedKeys = 0;
     room.pendingKeywordCardId = null;
+    room._cardSolveBonus = 0;
     room.timerEndAt = null;
 
     io.to(roomCode).emit('game:phaseChange', { phase: 'reveal' });
@@ -792,9 +804,7 @@ function goToNextRound(room, roomCode, io) {
     clearRankingTimer(room);
     const closedBoxes = room.boxes.filter(b => !b.isOpen);
     if (closedBoxes.length === 0 || room.round >= room.maxRounds) {
-        room.phase = 'game_over';
-        io.to(roomCode).emit('game:phaseChange', { phase: 'game_over' });
-        io.to(roomCode).emit('game:stateSync', sanitizeState(room));
+        finishGame(room, roomCode, io);
         return;
     }
 
@@ -1026,6 +1036,8 @@ function createGameRoom(code, hostSocketId, settings = {}) {
         selectedBoxId: null,
         lastRevealedBoxId: null,
         cardGrid: [],
+        unlockPhrase: [],
+        solveAttempts: 0,
         lockedKeys: 0,
         pendingKeywordCardId: null,
         chances: 0,
@@ -1037,6 +1049,7 @@ function createGameRoom(code, hostSocketId, settings = {}) {
         autoBalanceScoring: typeof settings.autoBalanceScoring === 'boolean' ? settings.autoBalanceScoring : true,
         questionCategories,
         currentWildcard: null,
+        wildcardFrequency: Math.max(0, Math.min(10, Number(settings.wildcardFrequency ?? DEFAULT_WILDCARD_FREQUENCY))),
         timerEndAt: null,
         duelOpponentId: null,
         duelSelectEndAt: null,
@@ -1056,7 +1069,59 @@ function createGameRoom(code, hostSocketId, settings = {}) {
         _botCounter: 0,
         _lastFrozenTeamId: null,
         _duelCardId: null,
+        _cardSolveBonus: 0,
+        _historySaved: false,
     };
+}
+
+function finishGame(room, roomCode, io) {
+    room.phase = 'game_over';
+    saveGameHistory(room);
+    io.to(roomCode).emit('game:phaseChange', { phase: 'game_over' });
+    io.to(roomCode).emit('game:stateSync', sanitizeState(room));
+}
+
+function saveGameHistory(room) {
+    if (room._historySaved) return;
+    room._historySaved = true;
+    const historyPath = path.join(__dirname, '.gamebox-history.json');
+    const safeTeams = Object.values(room.teams || {}).map((team) => ({
+        id: team.id,
+        name: team.name,
+        score: team.score,
+        inventory: team.inventory,
+        playerIds: team.playerIds,
+    }));
+    const entry = {
+        roomCode: room.roomCode,
+        finishedAt: new Date().toISOString(),
+        mode: room.mode,
+        rounds: room.round,
+        boxesOpened: room.boxesOpened,
+        teams: safeTeams,
+        metrics: buildPublicMetrics(room),
+    };
+
+    try {
+        const existing = fs.existsSync(historyPath)
+            ? JSON.parse(fs.readFileSync(historyPath, 'utf8'))
+            : [];
+        const next = Array.isArray(existing) ? existing : [];
+        next.push(entry);
+        fs.writeFileSync(historyPath, JSON.stringify(next.slice(-50), null, 2));
+    } catch (error) {
+        console.error('[History] Falha ao salvar historico:', error.message);
+    }
+}
+
+function getUnlockPhraseProgress(room) {
+    const phrase = Array.isArray(room.unlockPhrase) ? room.unlockPhrase : [];
+    return phrase.map((word, phraseIndex) => {
+        const isLocked = (room.cardGrid || []).some((card) => {
+            return card.type === 'key' && card.phraseIndex === phraseIndex && card.status === 'locked';
+        });
+        return isLocked ? word : null;
+    });
 }
 
 function sanitizeState(room) {
@@ -1075,6 +1140,9 @@ function sanitizeState(room) {
     delete state._botCounter;
     delete state._lastFrozenTeamId;
     delete state._duelCardId;
+    delete state._cardSolveBonus;
+    delete state._historySaved;
+    delete state.unlockPhrase;
     if (state.currentQuestion) {
         state.currentQuestion = { ...state.currentQuestion, correctIndex: -1 };
         delete state.currentQuestion.signature;
@@ -1098,7 +1166,16 @@ function sanitizeState(room) {
 
         state.currentRanking = sanitizedRanking;
     }
+    state.boxes = (room.boxes || []).map((box) => {
+        if (box.isOpen) return { ...box };
+        return {
+            id: box.id,
+            isOpen: false,
+        };
+    });
     state.cardGrid = getPublicGrid(room.cardGrid || []);
+    state.unlockPhraseProgress = getUnlockPhraseProgress(room);
+    state.solveAttempts = Number(room.solveAttempts || 0);
     state.answeredCount = Object.keys(room._triviaAnswers || {}).length;
     state.eligibleCount = getEligiblePlayerIds(room).length;
     state.serverNow = Date.now();

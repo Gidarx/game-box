@@ -8,6 +8,8 @@ function registerLobbyHandlers(context) {
     socket.on('game:settingsUpdate', (data) => onSettingsUpdate(context, data));
     socket.on('host:addBots', (data, callback) => onHostAddBots(context, data, callback));
     socket.on('host:clearBots', (data, callback) => onHostClearBots(context, data, callback));
+    socket.on('team:assign', (data, callback) => onTeamAssign(context, data, callback));
+    socket.on('team:rename', (data, callback) => onTeamRename(context, data, callback));
 }
 
 function onRoomCreate(context, settings, callback) {
@@ -130,7 +132,7 @@ function onPlayerReady(context, data, callback) {
 function onSettingsUpdate(context, data) {
     const { io, rooms, guards, constants, operations } = context;
     const { isHost, normalizeCode } = guards;
-    const { DEFAULT_MAX_ROUNDS } = constants;
+    const { DEFAULT_MAX_ROUNDS, DEFAULT_WILDCARD_FREQUENCY } = constants;
     const {
         getDefaultBoxes,
         rebuildSoloTeams,
@@ -160,6 +162,12 @@ function onSettingsUpdate(context, data) {
     if (settings.maxRounds) {
         room.maxRounds = Math.max(1, Number(settings.maxRounds) || DEFAULT_MAX_ROUNDS);
     }
+    if (settings.wildcardFrequency !== undefined) {
+        const nextFrequency = Number(settings.wildcardFrequency);
+        room.wildcardFrequency = Number.isFinite(nextFrequency)
+            ? Math.max(0, Math.min(10, nextFrequency))
+            : DEFAULT_WILDCARD_FREQUENCY;
+    }
     if (Array.isArray(settings.questionCategories)) {
         room.questionCategories = sanitizeQuestionCategories(settings.questionCategories);
     }
@@ -176,6 +184,47 @@ function onSettingsUpdate(context, data) {
     }
 
     io.to(roomCode).emit('game:stateSync', sanitizeState(room));
+}
+
+function onTeamAssign(context, data, callback) {
+    const { io, rooms, guards, operations } = context;
+    const { isHost, normalizeCode } = guards;
+    const { assignPlayerToTeam, sanitizeState } = operations;
+
+    const roomCode = normalizeCode(data?.roomCode);
+    const room = rooms.get(roomCode);
+    if (!room || room.phase !== 'lobby' || !isHost(room)) {
+        return callback?.({ success: false, error: 'Apenas o host pode editar times no lobby' });
+    }
+    if (room.mode !== 'equipes') {
+        return callback?.({ success: false, error: 'Edicao manual exige modo equipes' });
+    }
+    const player = room.players[data?.playerId];
+    const team = room.teams[data?.teamId];
+    if (!player || !team) return callback?.({ success: false, error: 'Jogador ou time invalido' });
+
+    assignPlayerToTeam(room, player.id, team.id);
+    io.to(roomCode).emit('game:stateSync', sanitizeState(room));
+    callback?.({ success: true });
+}
+
+function onTeamRename(context, data, callback) {
+    const { io, rooms, guards, operations } = context;
+    const { isHost, normalizeCode } = guards;
+    const { sanitizeState } = operations;
+
+    const roomCode = normalizeCode(data?.roomCode);
+    const room = rooms.get(roomCode);
+    if (!room || room.phase !== 'lobby' || !isHost(room)) {
+        return callback?.({ success: false, error: 'Apenas o host pode renomear times no lobby' });
+    }
+    const team = room.teams[data?.teamId];
+    const name = String(data?.name || '').trim().slice(0, 24);
+    if (!team || !name) return callback?.({ success: false, error: 'Nome de time invalido' });
+
+    team.name = name;
+    io.to(roomCode).emit('game:stateSync', sanitizeState(room));
+    callback?.({ success: true });
 }
 
 function onHostAddBots(context, data, callback) {

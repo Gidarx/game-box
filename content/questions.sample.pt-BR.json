@@ -1,0 +1,192 @@
+[
+  {
+    "id": "familia_001",
+    "text": "Qual dessas mensagens tem mais energia de grupo da familia no WhatsApp?",
+    "options": [
+      "Bom dia com flores e glitter",
+      "Segue o relatorio em anexo",
+      "Reuniao as 14h",
+      "Deploy concluido"
+    ],
+    "correctIndex": 0,
+    "category": "familia",
+    "difficulty": "easy",
+    "timeLimit": 12,
+    "status": "active",
+    "source": "seed",
+    "locale": "pt-BR",
+    "style": "fun",
+    "questionType": "vibe_choice"
+  },
+  {
+    "id": "internet_001",
+    "text": "Qual frase mais parece legenda de foto de comida no domingo?",
+    "options": [
+      "Hoje foi dia de cometer esse crime",
+      "Protocolo de rede atualizado",
+      "Relatorio trimestral fechado",
+      "Backup diferencial concluido"
+    ],
+    "correctIndex": 0,
+    "category": "internet",
+    "difficulty": "easy",
+    "timeLimit": 12,
+    "status": "active",
+    "source": "seed",
+    "locale": "pt-BR",
+    "style": "fun",
+    "questionType": "vibe_choice"
+  },
+  {
+    "id": "brasil_001",
+    "text": "Qual item mais entrega que a reuniao virou churrasco?",
+    "options": [
+      "Carvao no canto da cozinha",
+      "Ata assinada por todos",
+      "Projetor ligado",
+      "Caneta azul reserva"
+    ],
+    "correctIndex": 0,
+    "category": "brasil",
+    "difficulty": "easy",
+    "timeLimit": 12,
+    "status": "active",
+    "source": "seed",
+    "locale": "pt-BR",
+    "style": "fun",
+    "questionType": "vibe_choice"
+  },
+  {
+    "id": "nostalgia_001",
+    "text": "Qual dessas coisas tem mais cara de internet dos anos 2000?",
+    "options": [
+      "Subnick misterioso no MSN",
+      "Reels com legenda automatica",
+      "Pix copia e cola",
+      "Senha por biometria"
+    ],
+    "correctIndex": 0,
+    "category": "nostalgia",
+    "difficulty": "easy",
+    "timeLimit": 12,
+    "status": "active",
+    "source": "seed",
+    "locale": "pt-BR",
+    "style": "fun",
+    "questionType": "correct_choice"
+  },
+  {
+    "id": "comida_001",
+    "text": "Qual dessas opcoes mais combina com festa junina raiz?",
+    "options": [
+      "Pipoca e quentao",
+      "Sushi e wasabi",
+      "Croissant e cappuccino",
+      "Tacos e guacamole"
+    ],
+    "correctIndex": 0,
+    "category": "comida",
+    "difficulty": "easy",
+    "timeLimit": 12,
+    "status": "active",
+    "source": "seed",
+    "locale": "pt-BR",
+    "style": "fun",
+    "questionType": "correct_choice"
+  },
+  {
+    "id": "tv_001",
+    "text": "Qual frase mais parece chamada dramatica de novela?",
+    "options": [
+      "Ela voltou, e agora sabe de tudo",
+      "O boleto vence segunda-feira",
+      "A impressora esta sem toner",
+      "Atualize seu cadastro"
+    ],
+    "correctIndex": 0,
+    "category": "tv",
+    "difficulty": "easy",
+    "timeLimit": 12,
+    "status": "active",
+    "source": "seed",
+    "locale": "pt-BR",
+    "style": "fun",
+    "questionType": "vibe_choice"
+  },
+  {
+    "id": "memes_001",
+    "text": "Quando alguem fala 'so vou dar uma passadinha', o que normalmente acontece?",
+    "options": [
+      "Fica ate o fim do role",
+      "Some em cinco minutos",
+      "Leva uma planilha",
+      "Pede ata da conversa"
+    ],
+    "correctIndex": 0,
+    "category": "memes",
+    "difficulty": "easy",
+    "timeLimit": 12,
+    "status": "active",
+    "source": "seed",
+    "locale": "pt-BR",
+    "style": "fun",
+    "questionType": "vibe_choice"
+  },
+  {
+    "id": "role_001",
+    "text": "Qual sinal mostra que o role foi planejado em cima da hora?",
+    "options": [
+      "Alguem manda 'bora ver na hora'",
+      "Tem mapa impresso",
+      "Tem cronograma por minuto",
+      "Tem contrato reconhecido"
+    ],
+    "correctIndex": 0,
+    "category": "role",
+    "difficulty": "easy",
+    "timeLimit": 12,
+    "status": "active",
+    "source": "seed",
+    "locale": "pt-BR",
+    "style": "fun",
+    "questionType": "vibe_choice"
+  },
+  {
+    "id": "games_001",
+    "text": "Qual frase mais parece alguem perdendo no jogo e tentando disfarcar?",
+    "options": [
+      "Foi lag, eu juro",
+      "Otima execucao tecnica",
+      "Resultado previsto",
+      "Era exatamente o plano"
+    ],
+    "correctIndex": 0,
+    "category": "games",
+    "difficulty": "easy",
+    "timeLimit": 12,
+    "status": "active",
+    "source": "seed",
+    "locale": "pt-BR",
+    "style": "fun",
+    "questionType": "vibe_choice"
+  },
+  {
+    "id": "pegadinha_001",
+    "text": "Qual opcao tem mais cara de presente que e pegadinha?",
+    "options": [
+      "Caixa enorme com meia dentro",
+      "Vale-presente de alto valor",
+      "Ingresso VIP",
+      "Celular novo lacrado"
+    ],
+    "correctIndex": 0,
+    "category": "pegadinha",
+    "difficulty": "easy",
+    "timeLimit": 12,
+    "status": "active",
+    "source": "seed",
+    "locale": "pt-BR",
+    "style": "fun",
+    "questionType": "vibe_choice"
+  }
+]

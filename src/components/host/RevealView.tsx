@@ -116,8 +116,8 @@ export default function RevealView({ gameState, onContinue }: Props) {
     const rarity = RARITY_CONFIG[box.rarity] || RARITY_CONFIG.comum;
     const isPegadinha = box.points < 0;
     const isLendario = box.rarity === 'lendario';
-    const deliveredByTeam = box.deliveredBy
-        ? gameState.teams?.[box.deliveredBy]?.name || `Equipe ${box.deliveredBy}`
+    const deliveredByTeam = box.openedByTeamId
+        ? gameState.teams?.[box.openedByTeamId]?.name || `Equipe ${box.openedByTeamId}`
         : null;
 
     return (

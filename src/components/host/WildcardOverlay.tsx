@@ -12,18 +12,18 @@ interface Props {
 }
 
 const WILDCARD_COLORS: Record<string, { bg: string; border: string; text: string; glow: string }> = {
-    freeze: { bg: 'bg-accent-cyan/10', border: 'border-accent-cyan/30', text: 'text-accent-cyan', glow: 'shadow-[0_0_30px_rgba(0,229,255,0.2)]' },
-    steal: { bg: 'bg-accent-red/10', border: 'border-accent-red/30', text: 'text-accent-red', glow: 'shadow-[0_0_30px_rgba(255,23,68,0.2)]' },
-    boost: { bg: 'bg-accent-emerald/10', border: 'border-accent-emerald/30', text: 'text-accent-emerald', glow: 'shadow-[0_0_30px_rgba(0,230,118,0.2)]' },
-    shield: { bg: 'bg-primary/10', border: 'border-primary/30', text: 'text-primary', glow: 'shadow-[0_0_30px_rgba(247,183,49,0.2)]' },
+    FREEZE: { bg: 'bg-accent-cyan/10', border: 'border-accent-cyan/30', text: 'text-accent-cyan', glow: 'shadow-[0_0_30px_rgba(0,229,255,0.2)]' },
+    STEAL: { bg: 'bg-accent-red/10', border: 'border-accent-red/30', text: 'text-accent-red', glow: 'shadow-[0_0_30px_rgba(255,23,68,0.2)]' },
+    SWAP: { bg: 'bg-accent-emerald/10', border: 'border-accent-emerald/30', text: 'text-accent-emerald', glow: 'shadow-[0_0_30px_rgba(0,230,118,0.2)]' },
+    SHIELD: { bg: 'bg-primary/10', border: 'border-primary/30', text: 'text-primary', glow: 'shadow-[0_0_30px_rgba(247,183,49,0.2)]' },
 };
 
 export default function WildcardOverlay({ gameState, onApply, onSkip }: Props) {
-    const wildcard = gameState?.activeWildcard;
+    const wildcard = gameState?.currentWildcard;
     if (!wildcard) return null;
 
     const teams = Object.entries(gameState?.teams || {}).map(([id, team]: [string, any]) => ({ id, ...team }));
-    const colors = WILDCARD_COLORS[wildcard.type] || WILDCARD_COLORS.shield;
+    const colors = WILDCARD_COLORS[wildcard.type] || WILDCARD_COLORS.SHIELD;
 
     return (
         <AnimatePresence>

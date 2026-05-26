@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { FAST_MODE, QUESTION_CATEGORY_OPTIONS } = require('./config');
+const { fetchFirestoreQuestionDocuments } = require('./firebase-content');
 const { generateId, shuffleArray } = require('./random');
 
 function decodeHTML(text) {
@@ -33,6 +34,16 @@ function normalizeText(value) {
 function normalizeQuestionCategory(category) {
     const raw = normalizeText(category);
     if (!raw) return 'geral';
+    if (raw.includes('internet') || raw.includes('whatsapp') || raw.includes('rede social')) return 'internet';
+    if (raw.includes('meme') || raw.includes('viral') || raw.includes('trend')) return 'memes';
+    if (raw.includes('familia') || raw.includes('parente')) return 'familia';
+    if (raw.includes('nostalgia') || raw.includes('anos 90') || raw.includes('anos 2000')) return 'nostalgia';
+    if (raw.includes('brasil') || raw.includes('brasileiro') || raw.includes('cotidiano')) return 'brasil';
+    if (raw.includes('comida') || raw.includes('lanche') || raw.includes('churrasco')) return 'comida';
+    if (raw === 'tv' || raw.includes('televisao') || raw.includes('novela')) return 'tv';
+    if (raw.includes('game') || raw.includes('jogo')) return 'games';
+    if (raw.includes('role') || raw.includes('festa')) return 'role';
+    if (raw.includes('pegadinha') || raw.includes('troll')) return 'pegadinha';
     if (raw.includes('science') || raw.includes('ciencia') || raw.includes('natureza')) return 'ciencia';
     if (raw.includes('history') || raw.includes('historia')) return 'historia';
     if (raw.includes('geography') || raw.includes('geografia')) return 'geografia';
@@ -196,6 +207,12 @@ async function fetchTryviaQuestions(amount = 30, categories = ['all']) {
     return buildQuestionCatalog({ questionCategories: categories }, getFallbackQuestions());
 }
 
+async function fetchFirestoreQuestions(amount = 120, categories = ['all']) {
+    const rawQuestions = await fetchFirestoreQuestionDocuments({ limit: Math.min(500, Math.max(amount, amount * 4)) });
+    if (rawQuestions.length === 0) return [];
+    return buildQuestionCatalog({ questionCategories: categories }, rawQuestions).slice(0, amount);
+}
+
 // Picks next question using pool reuse and target difficulty by round.
 function getNextQuestion(room) {
     if (!Array.isArray(room._questionCatalog) || room._questionCatalog.length === 0) {
@@ -249,6 +266,7 @@ function getNextQuestion(room) {
 
 module.exports = {
     buildQuestionCatalog,
+    fetchFirestoreQuestions,
     fetchTryviaQuestions,
     getFallbackQuestions,
     getNextQuestion,

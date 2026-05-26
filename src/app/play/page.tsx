@@ -437,6 +437,137 @@ function TriviaPhase({
     );
 }
 
+function PhraseSolvePhase({
+    gameState, onSolve, isSubmitting, error
+}: {
+    gameState: any;
+    onSolve: (answer: string) => void;
+    isSubmitting: boolean;
+    error: string;
+}) {
+    const [answer, setAnswer] = useState('');
+    const phrase = Array.isArray(gameState?.unlockPhraseProgress) ? gameState.unlockPhraseProgress : [];
+
+    const handleSubmit = () => {
+        if (!answer.trim() || isSubmitting) return;
+        onSolve(answer);
+        setAnswer('');
+    };
+
+    return (
+        <MobileLayout>
+            <div className="flex items-center justify-between mb-6">
+                <span className="px-3 py-1 rounded-full bg-accent-emerald/15 border border-accent-emerald/30 text-[10px] font-bold uppercase tracking-widest text-accent-emerald">
+                    Sua vez
+                </span>
+                <div className="flex items-center gap-2 text-primary font-bold">
+                    <span className="material-icons text-lg">vpn_key</span>
+                    <span className="text-xs uppercase tracking-wider">{gameState?.chances || 0} chances</span>
+                </div>
+            </div>
+
+            <div className="bg-surface-dark border border-primary/10 rounded-3xl p-5 mb-5">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-black mb-3">Frase da caixa</p>
+                <div className="grid grid-cols-3 gap-2">
+                    {phrase.map((word: string | null, index: number) => (
+                        <div
+                            key={index}
+                            className={cn(
+                                "min-h-14 rounded-xl border flex items-center justify-center px-2 text-center text-sm font-black uppercase tracking-wider",
+                                word
+                                    ? "bg-accent-emerald/10 border-accent-emerald/30 text-accent-emerald"
+                                    : "bg-white/5 border-white/10 text-white/20"
+                            )}
+                        >
+                            {word || '???'}
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-primary/10 to-transparent border border-primary/20 rounded-3xl p-5 mb-5">
+                <p className="text-sm text-white/50 font-bold uppercase tracking-wide mb-3">
+                    Resolver a frase abre a caixa. Se errar, perde 1 chance.
+                </p>
+                <input
+                    value={answer}
+                    onChange={(event) => setAnswer(event.target.value)}
+                    onKeyDown={(event) => event.key === 'Enter' && handleSubmit()}
+                    disabled={isSubmitting}
+                    placeholder="Digite a frase completa"
+                    className="w-full bg-black/30 border border-primary/20 rounded-xl px-4 py-4 text-lg font-bold text-white focus:border-primary focus:outline-none"
+                />
+                <button
+                    onClick={handleSubmit}
+                    disabled={isSubmitting || !answer.trim()}
+                    className="btn-primary w-full mt-4 py-4 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                    <span className="material-icons">lock_open</span>
+                    {isSubmitting ? 'Enviando...' : 'Tentar Resolver'}
+                </button>
+            </div>
+
+            {error && (
+                <p className="text-red-400 text-xs font-bold uppercase tracking-wide text-center mt-3">{error}</p>
+            )}
+        </MobileLayout>
+    );
+}
+
+function WildcardPlayerPhase({
+    gameState, playerId, onApply, isSubmitting, error
+}: {
+    gameState: any;
+    playerId: string;
+    onApply: (targetTeamId: string) => void;
+    isSubmitting: boolean;
+    error: string;
+}) {
+    const myTeamId = gameState?.players?.[playerId]?.teamId;
+    const wildcard = gameState?.currentWildcard;
+    const teams = Object.values(gameState?.teams || {}) as any[];
+
+    return (
+        <MobileLayout>
+            <div className="flex items-center justify-between mb-6">
+                <span className="px-3 py-1 rounded-full bg-primary/15 border border-primary/30 text-[10px] font-bold uppercase tracking-widest text-primary">
+                    Wildcard
+                </span>
+                <span className="material-icons text-primary">style</span>
+            </div>
+
+            <div className="bg-surface-dark border border-primary/20 rounded-3xl p-6 text-center mb-5">
+                <span className="material-icons text-5xl text-primary mb-3">{wildcard?.icon || 'style'}</span>
+                <h2 className="text-2xl font-black uppercase tracking-wide">{wildcard?.name || 'Wildcard'}</h2>
+                <p className="text-white/45 text-sm mt-2">{wildcard?.description}</p>
+            </div>
+
+            <div className="flex flex-col gap-3">
+                {teams.map((team: any) => (
+                    <button
+                        key={team.id}
+                        onClick={() => onApply(team.id)}
+                        disabled={isSubmitting}
+                        className={cn(
+                            "w-full p-4 rounded-xl border text-left transition-colors disabled:opacity-60",
+                            team.id === myTeamId
+                                ? "bg-primary/10 border-primary/30"
+                                : "bg-surface-dark border-primary/10 hover:border-primary/30"
+                        )}
+                    >
+                        <p className="font-black">{team.name}</p>
+                        <p className="text-xs text-white/35 uppercase tracking-wide">{team.score || 0} pts</p>
+                    </button>
+                ))}
+            </div>
+
+            {error && (
+                <p className="text-red-400 text-xs font-bold uppercase tracking-wide text-center mt-4">{error}</p>
+            )}
+        </MobileLayout>
+    );
+}
+
 type FeedbackData = { type: string; message: string; detail?: string };
 
 function FeedbackPhase({ feedback }: { feedback: FeedbackData }) {
@@ -544,7 +675,7 @@ function PlayerContent() {
     const SESSION_KEY = 'gamebox_player_session';
     type StoredSession = { playerName?: string; playerId?: string | null; roomCode?: string };
 
-    const [phase, setPhase] = useState<'join' | 'waiting' | 'duel_select' | 'trivia' | 'feedback' | 'gameover'>('join');
+    const [phase, setPhase] = useState<'join' | 'waiting' | 'duel_select' | 'trivia' | 'card_solve' | 'wildcard' | 'feedback' | 'gameover'>('join');
     const [playerName, setPlayerName] = useState('');
     const [playerId, setPlayerId] = useState<string | null>(null);
     const [roomCode, setRoomCode] = useState('');
@@ -556,6 +687,8 @@ function PlayerContent() {
     const [feedback, setFeedback] = useState<FeedbackData | null>(null);
     const [error, setError] = useState('');
     const [isSelectingOpponent, setIsSelectingOpponent] = useState(false);
+    const [isSolvingPhrase, setIsSolvingPhrase] = useState(false);
+    const [isApplyingWildcard, setIsApplyingWildcard] = useState(false);
 
     const playerIdRef = useRef<string | null>(null);
     const gameStateRef = useRef<any>(null);
@@ -606,16 +739,33 @@ function PlayerContent() {
         }
     }, []);
 
+    const isPlayerFrozen = useCallback((state: any, pid: string | null) => {
+        if (!state || !pid) return false;
+        const teamId = state.players?.[pid]?.teamId;
+        const frozenUntilRound = teamId ? state.teams?.[teamId]?.frozenUntilRound : null;
+        return frozenUntilRound !== null && frozenUntilRound !== undefined && Number(frozenUntilRound) >= Number(state.round || 0);
+    }, []);
+
+    const isAttackerTeamPlayer = useCallback((state: any, pid: string | null) => {
+        if (!state || !pid) return false;
+        const teamId = state.players?.[pid]?.teamId;
+        return !!teamId && teamId === state.attackerTeamId;
+    }, []);
+
     const syncPhase = useCallback((state: any, pid: string | null) => {
         if (!state) return;
         if (state.phase === 'game_over') {
             setIsSelectingOpponent(false);
+            setIsSolvingPhrase(false);
+            setIsApplyingWildcard(false);
             setPhase('gameover');
             setTimerEndAt(null);
             return;
         }
         if (state.phase === 'trivia_all') {
             setIsSelectingOpponent(false);
+            setIsSolvingPhrase(false);
+            setIsApplyingWildcard(false);
             setQuestion(state.currentQuestion);
             setTimerEndAt(state.timerEndAt);
             setPhase('trivia');
@@ -639,6 +789,8 @@ function PlayerContent() {
 
             if (duelStarted && isDuelist) {
                 setIsSelectingOpponent(false);
+                setIsSolvingPhrase(false);
+                setIsApplyingWildcard(false);
                 setError('');
                 setQuestion(state.currentQuestion);
                 setTimerEndAt(state.timerEndAt);
@@ -646,13 +798,29 @@ function PlayerContent() {
                 answerEventRef.current = 'duel:answer';
             } else {
                 setIsSelectingOpponent(false);
+                setIsSolvingPhrase(false);
+                setIsApplyingWildcard(false);
                 setPhase('waiting');
             }
             return;
         }
+        if (state.phase === 'card_open') {
+            setIsSelectingOpponent(false);
+            setIsApplyingWildcard(false);
+            setPhase(isAttackerTeamPlayer(state, pid) ? 'card_solve' : 'waiting');
+            return;
+        }
+        if (state.phase === 'wildcard') {
+            setIsSelectingOpponent(false);
+            setIsSolvingPhrase(false);
+            setPhase(isAttackerTeamPlayer(state, pid) ? 'wildcard' : 'waiting');
+            return;
+        }
         setIsSelectingOpponent(false);
+        setIsSolvingPhrase(false);
+        setIsApplyingWildcard(false);
         setPhase('waiting');
-    }, []);
+    }, [isAttackerTeamPlayer]);
 
     // Socket Events
     useEffect(() => {
@@ -696,6 +864,9 @@ function PlayerContent() {
                 setPhase('waiting');
             } else if (p === 'game_over') {
                 setPhase('gameover');
+            } else if (p === 'card_open' || p === 'wildcard') {
+                const state = gameStateRef.current;
+                syncPhase(state, playerIdRef.current);
             } else {
                 setPhase('waiting');
             }
@@ -755,6 +926,22 @@ function PlayerContent() {
 
             setPhase('feedback');
             setTimeout(() => { setFeedback(null); setPhase('waiting'); }, 2500);
+        };
+
+        const onPhraseSolved = (data: any) => {
+            const pid = playerIdRef.current;
+            const iSolved = !!pid && data?.playerId === pid;
+            setFeedback({
+                type: data?.correct ? 'key' : 'wrong',
+                message: data?.correct
+                    ? (iSolved ? `Voce abriu a caixa! +${Number(data?.bonus || 0)} bonus` : 'Frase resolvida!')
+                    : (iSolved ? 'Frase incorreta' : 'Tentativa incorreta'),
+            });
+            setPhase('feedback');
+            setTimeout(() => {
+                setFeedback(null);
+                syncPhase(gameStateRef.current, playerIdRef.current);
+            }, 2500);
         };
 
         const onDuelStart = (data: any) => {
@@ -821,7 +1008,8 @@ function PlayerContent() {
         const onWildcardEffect = (data: any) => {
             const pid = playerIdRef.current;
             const state = gameStateRef.current;
-            if (pid && state?.players?.[pid]?.teamId === data.targetTeamId) {
+            const teamId = pid ? state?.players?.[pid]?.teamId : null;
+            if (pid && (teamId === data.targetTeamId || teamId === state?.attackerTeamId)) {
                 setFeedback({ type: 'wildcard', message: `WILDCARD APLICADO!` });
                 audio.playSFX('wildcard');
                 setPhase('feedback');
@@ -835,6 +1023,7 @@ function PlayerContent() {
             on('trivia:question', onTriviaQuestion),
             on('trivia:result', onTriviaResult),
             on('card:opened', onCardOpened),
+            on('card:phraseSolved', onPhraseSolved),
             on('duel:start', onDuelStart),
             on('duel:result', onDuelResult),
             on('wildcard:effect', onWildcardEffect)
@@ -896,6 +1085,10 @@ function PlayerContent() {
 
     const handleAnswer = (index: number) => {
         if (selectedAnswer !== null || !playerId) return;
+        if (answerEventRef.current === 'trivia:answer' && isPlayerFrozen(gameStateRef.current, playerId)) {
+            setError('Seu time esta congelado nesta rodada');
+            return;
+        }
         setSelectedAnswer(index);
         if (navigator.vibrate) navigator.vibrate(50);
         audio.playSFX('flip');
@@ -920,6 +1113,38 @@ function PlayerContent() {
             setIsSelectingOpponent(false);
             if (!res?.success) {
                 setError(res?.error || 'Nao foi possivel selecionar oponente');
+            }
+        });
+    };
+
+    const handleSolvePhrase = (answer: string) => {
+        if (!playerId || !roomCode || isSolvingPhrase) return;
+        setIsSolvingPhrase(true);
+        setError('');
+        emit('card:solvePhrase', {
+            roomCode: roomCode.toUpperCase(),
+            playerId,
+            answer,
+        }, (res: any) => {
+            setIsSolvingPhrase(false);
+            if (!res?.success) {
+                setError(res?.error || 'Nao foi possivel resolver');
+            }
+        });
+    };
+
+    const handleApplyWildcard = (targetTeamId: string) => {
+        if (!playerId || !roomCode || isApplyingWildcard) return;
+        setIsApplyingWildcard(true);
+        setError('');
+        emit('wildcard:playerApply', {
+            roomCode: roomCode.toUpperCase(),
+            playerId,
+            targetTeamId,
+        }, (res: any) => {
+            setIsApplyingWildcard(false);
+            if (!res?.success) {
+                setError(res?.error || 'Nao foi possivel aplicar wildcard');
             }
         });
     };
@@ -961,7 +1186,28 @@ function PlayerContent() {
                         key="trivia"
                         question={question} timeLeft={timeLeft} selectedAnswer={selectedAnswer}
                         onAnswer={handleAnswer} error={error}
-                        isFrozen={false} // TODO: Add Frozen Logic back if needed
+                        isFrozen={gameState?.phase === 'trivia_all' && isPlayerFrozen(gameState, playerId)}
+                    />
+                )}
+
+                {phase === 'card_solve' && (
+                    <PhraseSolvePhase
+                        key="card_solve"
+                        gameState={gameState}
+                        onSolve={handleSolvePhrase}
+                        isSubmitting={isSolvingPhrase}
+                        error={error}
+                    />
+                )}
+
+                {phase === 'wildcard' && playerId && (
+                    <WildcardPlayerPhase
+                        key="wildcard"
+                        gameState={gameState}
+                        playerId={playerId}
+                        onApply={handleApplyWildcard}
+                        isSubmitting={isApplyingWildcard}
+                        error={error}
                     />
                 )}
 

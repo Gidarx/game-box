@@ -15,11 +15,16 @@ import Leaderboard from '@/components/host/Leaderboard';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+const HOST_SESSION_KEY = 'gamebox_host_room';
+
 export default function HostPage() {
     const { emit, on, isConnected } = useSocket();
     const audio = useAudio();
     const [gameState, setGameState] = useState<any>(null);
-    const [roomCode, setRoomCode] = useState<string | null>(null);
+    const [roomCode, setRoomCode] = useState<string | null>(() => {
+        if (typeof window === 'undefined') return null;
+        return window.localStorage.getItem(HOST_SESSION_KEY);
+    });
     const [serverInfo, setServerInfo] = useState<{ localIP: string; port: number; playerUrl: string } | null>(null);
     const [rankingData, setRankingData] = useState<any>(null);
     const [rankingResult, setRankingResult] = useState<any>(null);
@@ -63,6 +68,10 @@ export default function HostPage() {
             else audio.playSFX('distractor');
         }));
 
+        unsubs.push(on('card:phraseSolved', (data: any) => {
+            audio.playSFX(data.correct ? 'key' : 'distractor');
+        }));
+
         unsubs.push(on('box:reveal', () => {
             audio.playSFX('reveal');
         }));
@@ -101,6 +110,7 @@ export default function HostPage() {
             if (res?.success) {
                 setRoomCode(res.roomCode);
                 setGameState(res.state);
+                window.localStorage.setItem(HOST_SESSION_KEY, res.roomCode);
             }
         });
     }, [emit, roomCode]);
@@ -124,6 +134,11 @@ export default function HostPage() {
         emit('host:rejoin', { roomCode }, (res: any) => {
             if (res?.success && res.state) {
                 setGameState(res.state);
+                window.localStorage.setItem(HOST_SESSION_KEY, roomCode);
+            } else {
+                window.localStorage.removeItem(HOST_SESSION_KEY);
+                setRoomCode(null);
+                setGameState(null);
             }
         });
     }, [isConnected, roomCode, emit]);
@@ -242,6 +257,16 @@ export default function HostPage() {
         });
     }, [roomCode, emit]);
 
+    const assignTeam = useCallback((playerId: string, teamId: string) => {
+        if (!roomCode) return;
+        emit('team:assign', { roomCode, playerId, teamId }, () => { });
+    }, [roomCode, emit]);
+
+    const renameTeam = useCallback((teamId: string, name: string) => {
+        if (!roomCode) return;
+        emit('team:rename', { roomCode, teamId, name }, () => { });
+    }, [roomCode, emit]);
+
     const handleToggleMute = useCallback(() => {
         const nowMuted = audio.toggleMute();
         setIsMuted(nowMuted);
@@ -270,6 +295,9 @@ export default function HostPage() {
     }
 
     const phase = gameState.phase;
+    const finalTeams = Object.values(gameState?.teams || {}) as any[];
+    const finalWinner = [...finalTeams].sort((a, b) => Number(b.score || 0) - Number(a.score || 0))[0];
+    const finalMetrics = gameState?.metrics || {};
 
     if (phase === 'lobby') {
         return (
@@ -281,6 +309,8 @@ export default function HostPage() {
                 onUpdateSettings={updateSettings}
                 onAddBots={addBots}
                 onClearBots={clearBots}
+                onAssignTeam={assignTeam}
+                onRenameTeam={renameTeam}
             />
         );
     }
@@ -383,10 +413,32 @@ export default function HostPage() {
 
                 {phase === 'game_over' && (
                     <div className="flex-grow flex items-center justify-center">
-                        <div className="text-center animate-fade-in">
+                        <div className="text-center animate-fade-in max-w-4xl w-full">
                             <span className="material-icons text-primary text-9xl mb-4">emoji_events</span>
                             <h1 className="text-6xl font-black uppercase tracking-tight mb-4">Fim de Jogo!</h1>
-                            <p className="text-xl text-white/60">Confira o placar final na barra lateral</p>
+                            {finalWinner && (
+                                <p className="text-3xl font-black text-primary mb-8">
+                                    {finalWinner.name} venceu com {finalWinner.score || 0} pts
+                                </p>
+                            )}
+                            <div className="grid grid-cols-4 gap-3 text-left">
+                                <div className="glass-panel rounded-2xl p-4">
+                                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-black">Trivia</p>
+                                    <p className="text-2xl font-black text-white mt-1">{finalMetrics.triviaRoundsResolved || 0}</p>
+                                </div>
+                                <div className="glass-panel rounded-2xl p-4">
+                                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-black">Precisao</p>
+                                    <p className="text-2xl font-black text-white mt-1">{Math.round(Number(finalMetrics.triviaAccuracyRate || 0) * 100)}%</p>
+                                </div>
+                                <div className="glass-panel rounded-2xl p-4">
+                                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-black">Duelos</p>
+                                    <p className="text-2xl font-black text-white mt-1">{finalMetrics.duelStats?.total || 0}</p>
+                                </div>
+                                <div className="glass-panel rounded-2xl p-4">
+                                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-black">Carta Letal</p>
+                                    <p className="text-lg font-black text-white mt-1 truncate">{finalMetrics.deadliestCards?.[0]?.word || '--'}</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}

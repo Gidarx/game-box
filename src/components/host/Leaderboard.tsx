@@ -132,7 +132,7 @@ export default function Leaderboard({ gameState, onForceNext }: Props) {
                                             key={idx}
                                             className="px-2 py-0.5 rounded-md bg-primary/5 border border-primary/10 text-[10px] font-bold uppercase tracking-wider text-white/40"
                                         >
-                                            {item.label || item}
+                                            {item.prizeLabel || item.label || String(item.boxId || item)}
                                         </span>
                                     ))}
                                     {team.inventory.length > 5 && (

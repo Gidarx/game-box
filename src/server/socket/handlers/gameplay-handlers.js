@@ -18,6 +18,7 @@ async function onGameStart(context, data, callback) {
     const {
         buildQuestionCatalog,
         createEmptyMetrics,
+        fetchFirestoreQuestions,
         fetchTryviaQuestions,
         getFallbackQuestions,
         sanitizeState,
@@ -28,14 +29,23 @@ async function onGameStart(context, data, callback) {
     const roomCode = normalizeCode(data?.roomCode);
     const room = rooms.get(roomCode);
     if (!room || !isHost(room)) return callback?.({ success: false, error: 'Apenas o host pode iniciar' });
+    if (room.phase !== 'lobby') return callback?.({ success: false, error: 'Jogo ja iniciado' });
 
     const connectedPlayers = Object.values(room.players).filter((player) => player.isConnected);
     if (connectedPlayers.length < MIN_PLAYERS_TO_START) {
         return callback?.({ success: false, error: `Minimo ${MIN_PLAYERS_TO_START} jogadores` });
     }
 
-    console.log('[Game] Buscando perguntas do Tryvia API...');
-    const fetchedQuestions = await fetchTryviaQuestions(QUESTION_FETCH_AMOUNT, room.questionCategories);
+    console.log('[Game] Buscando perguntas do Firebase...');
+    const firestoreQuestions = await fetchFirestoreQuestions(QUESTION_FETCH_AMOUNT, room.questionCategories);
+    const fetchedQuestions = firestoreQuestions.length > 0
+        ? firestoreQuestions
+        : await fetchTryviaQuestions(QUESTION_FETCH_AMOUNT, room.questionCategories);
+    if (firestoreQuestions.length > 0) {
+        console.log(`[Game] ${firestoreQuestions.length} perguntas carregadas do Firebase`);
+    } else {
+        console.log('[Game] Firebase sem perguntas ativas; usando Tryvia/fallback local');
+    }
     const fallbackQuestions = buildQuestionCatalog(room, getFallbackQuestions());
     room._questionCatalog = buildQuestionCatalog(room, [...fetchedQuestions, ...fallbackQuestions]);
     if (room._questionCatalog.length === 0) {
@@ -86,7 +96,8 @@ function onHostForceNext(context, data) {
 }
 
 function onRevealForceNext(room, roomCode, io, goToNextRound) {
-    if (room.boxesOpened > 0 && room.boxesOpened % 2 === 0) {
+    const wildcardFrequency = Math.max(0, Number(room.wildcardFrequency || 0));
+    if (wildcardFrequency > 0 && room.boxesOpened > 0 && room.boxesOpened % wildcardFrequency === 0) {
         room.currentWildcard = WILDCARD_DECK[Math.floor(Math.random() * WILDCARD_DECK.length)];
         room.phase = 'wildcard';
         io.to(roomCode).emit('game:phaseChange', { phase: 'wildcard' });

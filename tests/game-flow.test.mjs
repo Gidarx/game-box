@@ -217,6 +217,36 @@ async function driveUntilPhaseActionable({ host, roomCode, tracker, targetPhase,
     throw new Error(`Could not reach phase "${targetPhase}" within ${timeoutMs}ms`);
 }
 
+async function driveUntilCardOpen({ host, roomCode, tracker, timeoutMs = 60000 }) {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+        const state = tracker.state;
+        if (state?.phase === 'card_open' && state.chances > 0) return state;
+
+        if (state?.phase === 'box_select') {
+            const nextBox = (state.boxes || []).find((box) => !box.isOpen);
+            if (nextBox) {
+                await emitAck(host, 'box:select', { roomCode, boxId: nextBox.id });
+            }
+        } else if (state?.phase === 'ranking_challenge') {
+            const type = state.currentRanking?.type || 'order';
+            const answer = type === 'estimation'
+                ? 0
+                : type === 'true_false'
+                    ? [true, true, true, true]
+                    : [0, 1, 2, 3];
+            await emitAck(host, 'ranking:submit', { roomCode, answer });
+        } else if (state?.phase === 'duel' || state?.phase === 'reveal' || state?.phase === 'wildcard') {
+            host.emit('host:forceNext', { roomCode });
+        } else if (state?.phase === 'card_open' && state.chances <= 0) {
+            host.emit('host:forceNext', { roomCode });
+        }
+
+        await delay(120);
+    }
+    throw new Error(`Could not reach actionable card_open within ${timeoutMs}ms`);
+}
+
 before(async () => {
     serverProcess = spawn('node', ['server.js'], {
         cwd: process.cwd(),
@@ -273,6 +303,100 @@ test('ranking timeout resolves phase without host submit', async () => {
     }
 });
 
+test('public state hides unopened box rewards', async () => {
+    const setup = await createRoomSetup({ playerCount: 3 });
+    try {
+        const firstBox = setup.tracker.state.boxes?.[0];
+        assert.ok(firstBox, 'expected at least one box');
+        assert.equal(firstBox.isOpen, false);
+        assert.equal(firstBox.prizeLabel, undefined);
+        assert.equal(firstBox.points, undefined);
+        assert.equal(firstBox.type, undefined);
+    } finally {
+        await setup.cleanup();
+    }
+});
+
+test('card phrase is only exposed as public progress', async () => {
+    const setup = await createRoomSetup({ playerCount: 4 });
+    try {
+        const { host, roomCode, tracker } = setup;
+        const startResult = await emitAck(host, 'game:start', { roomCode });
+        assert.equal(startResult.success, true);
+
+        await driveUntilCardOpen({ host, roomCode, tracker, timeoutMs: 60000 });
+
+        assert.equal(tracker.state.unlockPhrase, undefined);
+        assert.ok(Array.isArray(tracker.state.unlockPhraseProgress));
+        assert.ok(tracker.state.unlockPhraseProgress.length > 0);
+        assert.ok(tracker.state.unlockPhraseProgress.every((word) => word === null || typeof word === 'string'));
+        assert.equal(typeof tracker.state.solveAttempts, 'number');
+    } finally {
+        await setup.cleanup();
+    }
+});
+
+test('host can manually edit teams and wildcard frequency in lobby', async () => {
+    const setup = await createRoomSetup({ playerCount: 4 });
+    try {
+        const { host, players, roomCode, tracker } = setup;
+
+        host.emit('game:settingsUpdate', {
+            roomCode,
+            settings: {
+                mode: 'equipes',
+                wildcardFrequency: 0,
+            },
+        });
+
+        await tracker.waitFor((state) => state?.mode === 'equipes' && state.wildcardFrequency === 0, 8000);
+        const teamIds = Object.keys(tracker.state.teams || {});
+        assert.ok(teamIds.length >= 2, 'expected at least two teams in team mode');
+
+        const renameResult = await emitAck(host, 'team:rename', {
+            roomCode,
+            teamId: teamIds[0],
+            name: 'Alpha',
+        });
+        assert.equal(renameResult.success, true);
+        await tracker.waitFor((state) => state?.teams?.[teamIds[0]]?.name === 'Alpha', 8000);
+
+        const player = players[0];
+        const currentTeamId = tracker.state.players[player.playerId].teamId;
+        const targetTeamId = teamIds.find((teamId) => teamId !== currentTeamId) || teamIds[0];
+
+        const assignResult = await emitAck(host, 'team:assign', {
+            roomCode,
+            playerId: player.playerId,
+            teamId: targetTeamId,
+        });
+        assert.equal(assignResult.success, true);
+
+        await tracker.waitFor((state) => state?.players?.[player.playerId]?.teamId === targetTeamId, 8000);
+        const memberships = Object.values(tracker.state.teams)
+            .flatMap((team) => team.playerIds)
+            .filter((playerId) => playerId === player.playerId);
+        assert.deepEqual(memberships, [player.playerId]);
+    } finally {
+        await setup.cleanup();
+    }
+});
+
+test('game cannot be started again after leaving lobby', async () => {
+    const setup = await createRoomSetup({ playerCount: 3 });
+    try {
+        const { host, roomCode } = setup;
+        const startResult = await emitAck(host, 'game:start', { roomCode });
+        assert.equal(startResult.success, true);
+
+        const restartResult = await emitAck(host, 'game:start', { roomCode });
+        assert.equal(restartResult.success, false);
+        assert.match(restartResult.error, /iniciado/i);
+    } finally {
+        await setup.cleanup();
+    }
+});
+
 test('duel opponent timeout auto-selects and duel resolves', async () => {
     const setup = await createRoomSetup({ playerCount: 4 });
     try {
@@ -308,6 +432,86 @@ test('duel opponent timeout auto-selects and duel resolves', async () => {
 
         await tracker.waitFor((state) => state?.phase === 'card_open' || state?.phase === 'trivia_all', 20000);
         assert.ok(['card_open', 'trivia_all'].includes(tracker.state.phase));
+    } finally {
+        await setup.cleanup();
+    }
+});
+
+test('duel returns to flow if chooser disconnects and does not rejoin', async () => {
+    const setup = await createRoomSetup({ playerCount: 4 });
+    try {
+        const { host, players, roomCode, tracker } = setup;
+        const startResult = await emitAck(host, 'game:start', { roomCode });
+        assert.equal(startResult.success, true);
+
+        await driveUntilPhaseActionable({ host, roomCode, tracker, targetPhase: 'duel', timeoutMs: 60000 });
+        const chooserId = tracker.state.triviaWinnerId;
+        const chooserPlayer = players.find((player) => player.playerId === chooserId);
+        assert.ok(chooserPlayer, 'expected chooser to be a connected test player');
+
+        chooserPlayer.socket.disconnect();
+
+        await tracker.waitFor((state) => state?.phase === 'card_open' || state?.phase === 'trivia_all', 12000);
+        assert.ok(['card_open', 'trivia_all'].includes(tracker.state.phase));
+        assert.equal(tracker.state.duelOpponentId, null);
+        if (tracker.state.phase === 'card_open') {
+            assert.equal(tracker.state.currentQuestion, null);
+        } else {
+            assert.ok(tracker.state.currentQuestion, 'expected a new trivia question after returning to trivia');
+        }
+    } finally {
+        await setup.cleanup();
+    }
+});
+
+test('key cards do not spend chances', async () => {
+    const setup = await createRoomSetup({ playerCount: 4 });
+    try {
+        const { host, roomCode, tracker } = setup;
+        const startResult = await emitAck(host, 'game:start', { roomCode });
+        assert.equal(startResult.success, true);
+
+        const startedAt = Date.now();
+        while (Date.now() - startedAt < 90000) {
+            await driveUntilCardOpen({ host, roomCode, tracker, timeoutMs: 30000 });
+
+            while (tracker.state?.phase === 'card_open' && tracker.state.chances > 0) {
+                if (tracker.state.pendingKeywordCardId) {
+                    const pendingCard = (tracker.state.cardGrid || []).find((card) => card.id === tracker.state.pendingKeywordCardId);
+                    const pendingWord = String(pendingCard?.word || '');
+                    if (pendingWord && pendingWord === pendingWord.toUpperCase()) {
+                        const chancesBefore = tracker.state.chances;
+                        const result = await emitAck(host, 'card:testKeyword', {
+                            roomCode,
+                            cardId: tracker.state.pendingKeywordCardId,
+                        });
+                        if (result.correct) {
+                            assert.equal(result.chances, chancesBefore);
+                            assert.equal(tracker.state.chances, chancesBefore);
+                            return;
+                        }
+                    } else {
+                        await emitAck(host, 'card:skipKeywordTest', {
+                            roomCode,
+                            cardId: tracker.state.pendingKeywordCardId,
+                        });
+                    }
+                } else {
+                    const hiddenCard = (tracker.state.cardGrid || []).find((card) => card.status === 'hidden');
+                    if (!hiddenCard) break;
+                    await emitAck(host, 'card:open', { roomCode, cardId: hiddenCard.id });
+                }
+
+                await delay(120);
+            }
+
+            if (tracker.state?.phase === 'duel' || tracker.state?.phase === 'card_open') {
+                host.emit('host:forceNext', { roomCode });
+            }
+            await delay(300);
+        }
+
+        assert.fail('expected to find and test a key card');
     } finally {
         await setup.cleanup();
     }

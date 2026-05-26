@@ -138,7 +138,9 @@ export interface GameState {
   attackerTeamId: string | null;
   selectedBoxId: number | null;
   lastRevealedBoxId: number | null;
-  cardGrid: Array<{ id: number; status: 'hidden' | 'revealed' | 'locked'; word: string | null; type: string | null; tested?: boolean }>;
+  cardGrid: Array<{ id: number; status: 'hidden' | 'revealed' | 'locked'; word: string | null; type: string | null; phraseIndex?: number; tested?: boolean }>;
+  unlockPhraseProgress: Array<string | null>;
+  solveAttempts: number;
   lockedKeys: number;
   pendingKeywordCardId: number | null;
   chances: number;
@@ -147,6 +149,7 @@ export interface GameState {
   autoBalanceScoring: boolean;
   questionCategories: string[];
   currentWildcard: WildcardCard | null;
+  wildcardFrequency: number;
   timerEndAt: number | null;
   duelOpponentId: string | null;
   duelSelectEndAt: number | null;
@@ -160,6 +163,7 @@ export interface RoomSettings {
   mode: GameMode;
   boxCount: number;
   maxRounds: number;
+  wildcardFrequency?: number;
   questionCategories?: string[];
   autoBalanceScoring?: boolean;
   scoring?: ScoringSettings;

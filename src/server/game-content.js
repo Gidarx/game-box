@@ -54,19 +54,21 @@ function generateCardGrid(box) {
     const decoys = shuffleArray(availableDecoys).slice(0, 7);
 
     const cards = [
-        ...keys.map((word) => ({ word, type: 'key' })),
+        ...keys.map((word, phraseIndex) => ({ word, type: 'key', phraseIndex })),
         ...decoys.map((word) => ({ word, type: 'distractor' })),
         { word: 'PERDEU A VEZ', type: 'lost_turn' },
         { word: 'DUELO', type: 'duel' },
     ];
 
-    return shuffleArray(cards).map((card, index) => ({
+    const grid = shuffleArray(cards).map((card, index) => ({
         id: index + 1,
         word: card.word,
         type: card.type,
+        phraseIndex: card.phraseIndex,
         status: 'hidden',
         tested: false,
     }));
+    return { grid, phrase: keys };
 }
 
 // Hides unrevealed words/types before broadcasting to clients.
@@ -76,6 +78,7 @@ function getPublicGrid(cardGrid) {
         status: card.status,
         word: card.status !== 'hidden' ? card.word : null,
         type: card.status === 'locked' || card.tested ? card.type : null,
+        phraseIndex: card.status !== 'hidden' ? card.phraseIndex : undefined,
         tested: !!card.tested,
     }));
 }
